@@ -5,7 +5,7 @@ export async function loadAdmin() {
     supabase.from('stores').select('*').order('name'),
     supabase.from('products').select('*').order('name'),
     supabase.from('product_offers').select('*').order('last_checked_at',{ascending:false}),
-    supabase.from('coupons').select('id,code,store_id').order('code'),
+    supabase.from('coupons').select('*').order('code'),
     supabase.from('price_history').select('id,product_offer_id,price,collected_at').order('collected_at'),
     supabase.from('offer_scores').select('*').order('calculated_at',{ascending:false}).order('id',{ascending:false}),
   ])
