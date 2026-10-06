@@ -499,64 +499,94 @@ export type Database = {
           allowed_categories: string[]
           chat_id: string
           id: string
+          message_template: string | null
           min_score: number
           name: string
+          repost_cooldown_minutes: number
+          repost_min_drop_percent: number
+          updated_at: string
         }
         Insert: {
           active?: boolean
           allowed_categories?: string[]
           chat_id: string
           id?: string
+          message_template?: string | null
           min_score?: number
           name: string
+          repost_cooldown_minutes?: number
+          repost_min_drop_percent?: number
+          updated_at?: string
         }
         Update: {
           active?: boolean
           allowed_categories?: string[]
           chat_id?: string
           id?: string
+          message_template?: string | null
           min_score?: number
           name?: string
+          repost_cooldown_minutes?: number
+          repost_min_drop_percent?: number
+          updated_at?: string
         }
         Relationships: []
       }
       telegram_posts: {
         Row: {
+          attempts: number
           channel_id: string | null
           created_at: string
+          dedupe_key: string | null
+          effective_price: number | null
           error: string | null
           id: number
+          last_attempt_at: string | null
+          next_attempt_at: string | null
           payload: Json
           price: number | null
           product_offer_id: string | null
           score: number | null
           sent_at: string | null
+          source_score_id: number | null
           status: string
           telegram_message_id: string | null
         }
         Insert: {
+          attempts?: number
           channel_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          effective_price?: number | null
           error?: string | null
           id?: number
+          last_attempt_at?: string | null
+          next_attempt_at?: string | null
           payload?: Json
           price?: number | null
           product_offer_id?: string | null
           score?: number | null
           sent_at?: string | null
+          source_score_id?: number | null
           status?: string
           telegram_message_id?: string | null
         }
         Update: {
+          attempts?: number
           channel_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
+          effective_price?: number | null
           error?: string | null
           id?: number
+          last_attempt_at?: string | null
+          next_attempt_at?: string | null
           payload?: Json
           price?: number | null
           product_offer_id?: string | null
           score?: number | null
           sent_at?: string | null
+          source_score_id?: number | null
           status?: string
           telegram_message_id?: string | null
         }
@@ -573,6 +603,13 @@ export type Database = {
             columns: ["product_offer_id"]
             isOneToOne: false
             referencedRelation: "product_offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_posts_source_score_id_fkey"
+            columns: ["source_score_id"]
+            isOneToOne: false
+            referencedRelation: "offer_scores"
             referencedColumns: ["id"]
           },
         ]
@@ -637,6 +674,10 @@ export type Database = {
     }
     Functions: {
       analyze_offer: { Args: { p_offer_id: string }; Returns: number }
+      queue_telegram_offer_admin: {
+        Args: { p_offer_id: string }
+        Returns: number
+      }
       simulate_collection: {
         Args: {
           p_offer_id: string
