@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Clock3, RefreshCw, Search, Settings2, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, Clock3, FlaskConical, RefreshCw, Search, Settings2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -70,6 +70,13 @@ function CollectorsPage() {
   const [configText, setConfigText] = useState('{}')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [simulating, setSimulating] = useState(false)
+  const [simOfferId, setSimOfferId] = useState('')
+  const [simPrice, setSimPrice] = useState('')
+  const [simOriginalPrice, setSimOriginalPrice] = useState('')
+  const [simShippingPrice, setSimShippingPrice] = useState('0')
+  const [simInStock, setSimInStock] = useState(true)
+  const [simSaving, setSimSaving] = useState(false)
 
   const productName = (id: string) => data?.products.find((item) => item.id === id)?.name ?? 'Produto removido'
   const storeName = (id: string) => data?.stores.find((item) => item.id === id)?.name ?? 'Loja removida'
@@ -144,6 +151,56 @@ function CollectorsPage() {
     setMessage('')
   }
 
+  function openSimulator() {
+    const offer = data.offers[0]
+    if (!offer) {
+      setMessage('Cadastre uma oferta antes de usar o simulador.')
+      return
+    }
+    setSimOfferId(offer.id)
+    setSimPrice(offer.current_price == null ? '' : String(offer.current_price))
+    setSimOriginalPrice('')
+    setSimShippingPrice('0')
+    setSimInStock(true)
+    setSimulating(true)
+    setMessage('')
+  }
+
+  function changeSimOffer(offerId: string) {
+    setSimOfferId(offerId)
+    const offer = data.offers.find((item) => item.id === offerId)
+    setSimPrice(offer?.current_price == null ? '' : String(offer.current_price))
+  }
+
+  async function runSimulation(event: FormEvent) {
+    event.preventDefault()
+    const price = Number(simPrice)
+    if (!simOfferId || !Number.isFinite(price) || price <= 0) {
+      setMessage('Escolha uma oferta e informe um preço maior que zero.')
+      return
+    }
+    setSimSaving(true)
+    setMessage('')
+    const { data: jobId, error: simulationError } = await supabase.rpc('simulate_collection', {
+      p_offer_id: simOfferId,
+      p_price: price,
+      p_original_price: simOriginalPrice.trim() ? Number(simOriginalPrice) : null,
+      p_shipping_price: simShippingPrice.trim() ? Number(simShippingPrice) : 0,
+      p_in_stock: simInStock,
+    })
+    setSimSaving(false)
+    if (simulationError) {
+      setMessage(simulationError.message)
+      return
+    }
+    setSimulating(false)
+    setMessage(`Simulação concluída com sucesso. Job #${jobId} passou pelo pipeline real de coleta.`)
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['operations'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin-data'] }),
+    ])
+  }
+
   async function saveSettings(event: FormEvent) {
     event.preventDefault()
     if (!editing) return
@@ -186,7 +243,10 @@ function CollectorsPage() {
             Ative fontes, ajuste a frequência e acompanhe a fila de coleta de preços.
           </p>
         </div>
-        <Button variant="outline" onClick={invalidate}><RefreshCw size={16} /> Atualizar</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={openSimulator}><FlaskConical size={16} /> Simular coleta</Button>
+          <Button variant="outline" onClick={invalidate}><RefreshCw size={16} /> Atualizar</Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -298,6 +358,64 @@ function CollectorsPage() {
           {!data.jobs.length && <p className="px-4 py-8 text-center text-sm text-muted-foreground">A fila ainda está vazia. Isso é esperado enquanto nenhum coletor estiver ativo.</p>}
         </div>
       </section>
+
+      <Dialog open={simulating} onOpenChange={setSimulating}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Simular coleta</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={runSimulation} className="space-y-4">
+            <div className="border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">
+              Esta ação grava uma coleta real no histórico, recalcula o score e cria job, worker e log. Use valores de teste conscientemente.
+            </div>
+            <label className="block text-sm font-medium">
+              Oferta
+              <select
+                value={simOfferId}
+                onChange={(event) => changeSimOffer(event.target.value)}
+                className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                required
+              >
+                {data.offers.map((offer) => (
+                  <option key={offer.id} value={offer.id}>
+                    {productName(offer.product_id)} — {storeName(offer.store_id)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium">
+                Preço encontrado
+                <Input className="mt-1.5" type="number" min="0.01" step="0.01" value={simPrice} onChange={(event) => setSimPrice(event.target.value)} required />
+              </label>
+              <label className="block text-sm font-medium">
+                Preço original
+                <Input className="mt-1.5" type="number" min="0" step="0.01" value={simOriginalPrice} onChange={(event) => setSimOriginalPrice(event.target.value)} placeholder="Opcional" />
+              </label>
+              <label className="block text-sm font-medium">
+                Frete
+                <Input className="mt-1.5" type="number" min="0" step="0.01" value={simShippingPrice} onChange={(event) => setSimShippingPrice(event.target.value)} />
+              </label>
+              <label className="block text-sm font-medium">
+                Estoque
+                <select
+                  value={simInStock ? 'true' : 'false'}
+                  onChange={(event) => setSimInStock(event.target.value === 'true')}
+                  className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="true">Em estoque</option>
+                  <option value="false">Sem estoque</option>
+                </select>
+              </label>
+            </div>
+            {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setSimulating(false)}>Cancelar</Button>
+              <Button type="submit" disabled={simSaving}>{simSaving ? 'Executando...' : 'Executar simulação'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editing !== null} onOpenChange={(open) => { if (!open) setEditing(null) }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
