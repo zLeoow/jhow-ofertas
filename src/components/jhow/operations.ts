@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 
 export async function loadOperations() {
-  const [offers, jobs, workers, logs, products, stores] = await Promise.all([
+  const [offers, jobs, workers, logs, products, stores, settings] = await Promise.all([
     supabase
       .from('product_offers')
       .select('id,product_id,store_id,current_price,original_price,shipping_price,in_stock,active,collector_enabled,collector_kind,collector_config,collection_interval_minutes,last_checked_at,next_check_at,last_collection_status,last_collection_error')
@@ -23,9 +23,10 @@ export async function loadOperations() {
       .limit(500),
     supabase.from('products').select('id,name,brand,category').order('name'),
     supabase.from('stores').select('id,name,slug').order('name'),
+    supabase.from('settings').select('value').eq('key','collector').maybeSingle(),
   ])
 
-  const error = [offers, jobs, workers, logs, products, stores].find((result) => result.error)?.error
+  const error = [offers, jobs, workers, logs, products, stores, settings].find((result) => result.error)?.error
   if (error) throw error
 
   return {
@@ -35,6 +36,7 @@ export async function loadOperations() {
     logs: logs.data ?? [],
     products: products.data ?? [],
     stores: stores.data ?? [],
+    collectorSettings: settings.data?.value ?? {},
   }
 }
 
@@ -75,9 +77,23 @@ export function formatRelative(value: string | null | undefined) {
   return formatter.format(Math.round(hours / 24), 'day')
 }
 
-export function workerIsOnline(worker: WorkerRow) {
+export function workerIsOnline(worker: WorkerRow, offlineMinutes = 15) {
   if (worker.status !== 'online' || !worker.last_heartbeat) return false
-  return Date.now() - new Date(worker.last_heartbeat).getTime() < 15 * 60_000
+  return Date.now() - new Date(worker.last_heartbeat).getTime() < Math.max(1, offlineMinutes) * 60_000
+}
+
+export function collectorSettingNumber(data: OperationsData, key: string, fallback: number) {
+  const value = data.collectorSettings
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const raw = (value as Record<string, unknown>)[key]
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : fallback
+}
+
+export function collectorSettingBoolean(data: OperationsData, key: string, fallback: boolean) {
+  const value = data.collectorSettings
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const raw = (value as Record<string, unknown>)[key]
+  return typeof raw === 'boolean' ? raw : fallback
 }
 
 export function jsonSummary(value: unknown) {
