@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client'
 import type { Json } from '@/integrations/supabase/types'
 import { money } from '@/components/jhow/data'
 import {
+  collectorSettingBoolean,
+  collectorSettingNumber,
   formatDateTime,
   formatRelative,
   type CollectorOffer,
@@ -99,6 +101,13 @@ function CollectorsPage() {
   if (isPending) return <p className="text-muted-foreground">Carregando coletores...</p>
   if (error || !data) return <p role="alert" className="text-destructive">Não foi possível carregar os coletores: {error?.message}</p>
 
+  const adaptiveIntervals = collectorSettingBoolean(data, 'adaptive_intervals', true)
+  const popularThreshold = collectorSettingNumber(data, 'popular_threshold', 80)
+  const normalThreshold = collectorSettingNumber(data, 'normal_threshold', 40)
+  const popularMinutes = collectorSettingNumber(data, 'interval_popular_minutes', 5)
+  const normalMinutes = collectorSettingNumber(data, 'interval_normal_minutes', 30)
+  const lowMinutes = collectorSettingNumber(data, 'interval_low_minutes', 120)
+  const outMinutes = collectorSettingNumber(data, 'interval_out_of_stock_minutes', 360)
   const enabled = data.offers.filter((offer) => offer.collector_enabled).length
   const due = data.offers.filter((offer) =>
     offer.collector_enabled &&
@@ -304,7 +313,22 @@ function CollectorsPage() {
                   <p>{offer.collector_kind}</p>
                   <p className="text-xs text-muted-foreground">{offer.collector_enabled ? 'monitorando' : 'parado'}</p>
                 </td>
-                <td className="px-4 py-3">{offer.collection_interval_minutes} min</td>
+                <td className="px-4 py-3">
+                  {adaptiveIntervals ? (
+                    <div>
+                      <p>Adaptativo</p>
+                      <p className="text-xs text-muted-foreground">
+                        {offer.in_stock
+                          ? ((data.products.find((item) => item.id === offer.product_id) as { popularity_score?: number } | undefined)?.popularity_score ?? 50) >= popularThreshold
+                            ? `${popularMinutes} min`
+                            : ((data.products.find((item) => item.id === offer.product_id) as { popularity_score?: number } | undefined)?.popularity_score ?? 50) >= normalThreshold
+                              ? `${normalMinutes} min`
+                              : `${lowMinutes} min`
+                          : `${outMinutes} min`}
+                      </p>
+                    </div>
+                  ) : `${offer.collection_interval_minutes} min`}
+                </td>
                 <td className="px-4 py-3 font-medium">{money(offer.current_price == null ? null : Number(offer.current_price))}</td>
                 <td className="px-4 py-3" title={formatDateTime(offer.last_checked_at)}>{formatRelative(offer.last_checked_at)}</td>
                 <td className="px-4 py-3" title={formatDateTime(offer.next_check_at)}>{formatRelative(offer.next_check_at)}</td>
