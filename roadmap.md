@@ -5,5 +5,5 @@
 - [x] Finish Stage 3 offer analysis page, refresh, sample validation, and build verification.
 - [x] Stage 4 collection engine: queue, workers, logs, simulator, and global collection settings.
 - [x] Stage 5 coupon engine: CRUD, verification, expiry/minimum rules, effective price, score integration, and automatic reanalysis.
-- [ ] Stage 6 Telegram publishing, anti-spam, templates, and channel rules.
+- [x] Stage 6 Telegram publishing core: channels, score/category rules, anti-spam, templates, queue, secure Bot API sender, test/send/retry UI.\n- [ ] Stage 6.1 Telegram automation: configure TELEGRAM_BOT_TOKEN and production scheduler/cron for unattended queue processing.
 - [ ] Finalize external collectors (Mercado Livre first), secrets, production deployment, and monitoring.
