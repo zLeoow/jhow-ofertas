@@ -113,6 +113,7 @@ export type Database = {
       }
       coupons: {
         Row: {
+          active: boolean
           code: string
           created_at: string
           description: string | null
@@ -120,12 +121,18 @@ export type Database = {
           discount_value: number | null
           expires_at: string | null
           id: string
+          last_error: string | null
           last_verified_at: string | null
+          max_discount: number | null
           minimum_purchase: number | null
+          notes: string | null
+          source_url: string | null
           store_id: string | null
+          updated_at: string
           verified: boolean
         }
         Insert: {
+          active?: boolean
           code: string
           created_at?: string
           description?: string | null
@@ -133,12 +140,18 @@ export type Database = {
           discount_value?: number | null
           expires_at?: string | null
           id?: string
+          last_error?: string | null
           last_verified_at?: string | null
+          max_discount?: number | null
           minimum_purchase?: number | null
+          notes?: string | null
+          source_url?: string | null
           store_id?: string | null
+          updated_at?: string
           verified?: boolean
         }
         Update: {
+          active?: boolean
           code?: string
           created_at?: string
           description?: string | null
@@ -146,9 +159,14 @@ export type Database = {
           discount_value?: number | null
           expires_at?: string | null
           id?: string
+          last_error?: string | null
           last_verified_at?: string | null
+          max_discount?: number | null
           minimum_purchase?: number | null
+          notes?: string | null
+          source_url?: string | null
           store_id?: string | null
+          updated_at?: string
           verified?: boolean
         }
         Relationships: [
@@ -170,6 +188,10 @@ export type Database = {
           calculated_at: string
           classification: string
           confidence: number
+          coupon_applied: boolean
+          coupon_discount_amount: number
+          effective_price: number | null
+          effective_shipping_price: number | null
           id: number
           is_new_low: boolean
           is_new_low_90d: boolean
@@ -192,6 +214,10 @@ export type Database = {
           calculated_at?: string
           classification: string
           confidence?: number
+          coupon_applied?: boolean
+          coupon_discount_amount?: number
+          effective_price?: number | null
+          effective_shipping_price?: number | null
           id?: number
           is_new_low?: boolean
           is_new_low_90d?: boolean
@@ -214,6 +240,10 @@ export type Database = {
           calculated_at?: string
           classification?: string
           confidence?: number
+          coupon_applied?: boolean
+          coupon_discount_amount?: number
+          effective_price?: number | null
+          effective_shipping_price?: number | null
           id?: number
           is_new_low?: boolean
           is_new_low_90d?: boolean
