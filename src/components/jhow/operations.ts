@@ -21,7 +21,7 @@ export async function loadOperations() {
       .select('id,level,event,source,product_offer_id,message,metadata,created_at')
       .order('created_at', { ascending: false })
       .limit(500),
-    supabase.from('products').select('id,name,brand,category').order('name'),
+    supabase.from('products').select('id,name,brand,category,popularity_score').order('name'),
     supabase.from('stores').select('id,name,slug').order('name'),
     supabase.from('settings').select('value').eq('key','collector').maybeSingle(),
   ])
