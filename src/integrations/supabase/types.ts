@@ -17,33 +17,45 @@ export type Database = {
       collection_jobs: {
         Row: {
           attempts: number
+          claimed_by: string | null
+          duration_ms: number | null
           error: string | null
           finished_at: string | null
           id: number
+          locked_at: string | null
           priority: number
           product_offer_id: string
+          result: Json
           scheduled_at: string
           started_at: string | null
           status: string
         }
         Insert: {
           attempts?: number
+          claimed_by?: string | null
+          duration_ms?: number | null
           error?: string | null
           finished_at?: string | null
           id?: number
+          locked_at?: string | null
           priority?: number
           product_offer_id: string
+          result?: Json
           scheduled_at?: string
           started_at?: string | null
           status?: string
         }
         Update: {
           attempts?: number
+          claimed_by?: string | null
+          duration_ms?: number | null
           error?: string | null
           finished_at?: string | null
           id?: number
+          locked_at?: string | null
           priority?: number
           product_offer_id?: string
+          result?: Json
           scheduled_at?: string
           started_at?: string | null
           status?: string
@@ -265,12 +277,18 @@ export type Database = {
         Row: {
           active: boolean
           affiliate_url: string | null
+          collection_interval_minutes: number
+          collector_config: Json
+          collector_enabled: boolean
+          collector_kind: string
           coupon_id: string | null
           current_price: number | null
           id: string
           in_stock: boolean
           installments: string | null
           last_checked_at: string | null
+          last_collection_error: string | null
+          last_collection_status: string | null
           next_check_at: string | null
           original_price: number | null
           product_id: string
@@ -281,12 +299,18 @@ export type Database = {
         Insert: {
           active?: boolean
           affiliate_url?: string | null
+          collection_interval_minutes?: number
+          collector_config?: Json
+          collector_enabled?: boolean
+          collector_kind?: string
           coupon_id?: string | null
           current_price?: number | null
           id?: string
           in_stock?: boolean
           installments?: string | null
           last_checked_at?: string | null
+          last_collection_error?: string | null
+          last_collection_status?: string | null
           next_check_at?: string | null
           original_price?: number | null
           product_id: string
@@ -297,12 +321,18 @@ export type Database = {
         Update: {
           active?: boolean
           affiliate_url?: string | null
+          collection_interval_minutes?: number
+          collector_config?: Json
+          collector_enabled?: boolean
+          collector_kind?: string
           coupon_id?: string | null
           current_price?: number | null
           id?: string
           in_stock?: boolean
           installments?: string | null
           last_checked_at?: string | null
+          last_collection_error?: string | null
+          last_collection_status?: string | null
           next_check_at?: string | null
           original_price?: number | null
           product_id?: string
