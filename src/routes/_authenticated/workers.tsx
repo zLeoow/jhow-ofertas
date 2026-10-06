@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, CheckCircle2, Clock3, RefreshCw, Search, Serve
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  collectorSettingNumber,
   formatDateTime,
   formatRelative,
   jsonSummary,
@@ -43,7 +44,8 @@ function WorkersPage() {
   if (isPending) return <p className="text-muted-foreground">Carregando workers...</p>
   if (error || !data) return <p role="alert" className="text-destructive">Não foi possível carregar os workers: {error?.message}</p>
 
-  const online = data.workers.filter(workerIsOnline).length
+  const offlineMinutes = collectorSettingNumber(data, 'worker_offline_minutes', 15)
+  const online = data.workers.filter((worker) => workerIsOnline(worker, offlineMinutes)).length
   const processed = data.workers.reduce((total, worker) => total + Number(worker.processed_count || 0), 0)
   const errors = data.workers.reduce((total, worker) => total + Number(worker.error_count || 0), 0)
   const durations = data.workers.filter((worker) => worker.avg_duration_ms > 0)
@@ -101,7 +103,7 @@ function WorkersPage() {
           </thead>
           <tbody>
             {rows.map((worker) => {
-              const fresh = workerIsOnline(worker)
+              const fresh = workerIsOnline(worker, offlineMinutes)
               const workerProcessed = Number(worker.processed_count || 0)
               const workerErrors = Number(worker.error_count || 0)
               const total = workerProcessed + workerErrors
@@ -154,8 +156,8 @@ function WorkersPage() {
       <section className="border border-border bg-card p-5">
         <h2 className="font-semibold">Como o status é calculado</h2>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Um worker é mostrado como online quando o banco informa status online e recebeu heartbeat nos últimos 15 minutos.
-          Isso evita que um processo encerrado continue aparecendo como saudável apenas por ter sido registrado anteriormente.
+          Um worker é mostrado como online quando o banco informa status online e recebeu heartbeat dentro da janela configurada.
+          A janela atual é de {offlineMinutes} minutos. Isso evita divergência entre o painel e o motor de recuperação.
         </p>
       </section>
     </div>
