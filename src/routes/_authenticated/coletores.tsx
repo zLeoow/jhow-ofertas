@@ -159,9 +159,9 @@ function CollectorsPage() {
     }
     setSimOfferId(offer.id)
     setSimPrice(offer.current_price == null ? '' : String(offer.current_price))
-    setSimOriginalPrice('')
-    setSimShippingPrice('0')
-    setSimInStock(true)
+    setSimOriginalPrice(offer.original_price == null ? '' : String(offer.original_price))
+    setSimShippingPrice(String(offer.shipping_price ?? 0))
+    setSimInStock(offer.in_stock)
     setSimulating(true)
     setMessage('')
   }
@@ -170,6 +170,9 @@ function CollectorsPage() {
     setSimOfferId(offerId)
     const offer = data.offers.find((item) => item.id === offerId)
     setSimPrice(offer?.current_price == null ? '' : String(offer.current_price))
+    setSimOriginalPrice(offer?.original_price == null ? '' : String(offer.original_price))
+    setSimShippingPrice(String(offer?.shipping_price ?? 0))
+    setSimInStock(offer?.in_stock ?? true)
   }
 
   async function runSimulation(event: FormEvent) {
