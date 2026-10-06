@@ -607,6 +607,16 @@ export type Database = {
     }
     Functions: {
       analyze_offer: { Args: { p_offer_id: string }; Returns: number }
+      simulate_collection: {
+        Args: {
+          p_offer_id: string
+          p_price: number
+          p_original_price?: number | null
+          p_shipping_price?: number | null
+          p_in_stock?: boolean
+        }
+        Returns: number
+      }
       calculate_offer_score_internal: {
         Args: { p_offer_id: string }
         Returns: number
