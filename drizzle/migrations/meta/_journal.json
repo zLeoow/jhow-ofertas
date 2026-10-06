@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791134278028,
+      "tag": "0000_offer_analysis_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791158989938,
+      "tag": "0001_allow_admin_offer_reanalysis",
+      "breakpoints": true
+    }
+  ]
+}

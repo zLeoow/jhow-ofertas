@@ -1,0 +1,5 @@
+- [x] Recreate original schema with admin-only access controls and example data.
+- [x] Finish administrative sign-in, protected pages, real management screens, and verification.
+- [x] Assign first administrator after a confirmed account exists.
+- [ ] Import original operational records and assets, if any (blocked: exports not provided).
+- [x] Finish Stage 3 offer analysis page, refresh, sample validation, and build verification.
