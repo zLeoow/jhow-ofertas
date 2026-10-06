@@ -1,0 +1,2 @@
+import { createFileRoute, redirect } from '@tanstack/react-router'
+export const Route=createFileRoute('/')({head:()=>({meta:[{title:'Jhow Ofertas — Central de monitoramento'},{name:'description',content:'Acesse a central administrativa de ofertas Jhow.'},{property:'og:title',content:'Jhow Ofertas — Central de monitoramento'},{property:'og:description',content:'Acesse a central administrativa de ofertas Jhow.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary'}]}),beforeLoad:()=>{throw redirect({to:'/painel'})}})
