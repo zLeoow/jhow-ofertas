@@ -5,7 +5,7 @@ export async function loadOperations() {
   const [offers, jobs, workers, logs, products, stores] = await Promise.all([
     supabase
       .from('product_offers')
-      .select('id,product_id,store_id,current_price,active,collector_enabled,collector_kind,collector_config,collection_interval_minutes,last_checked_at,next_check_at,last_collection_status,last_collection_error')
+      .select('id,product_id,store_id,current_price,original_price,shipping_price,in_stock,active,collector_enabled,collector_kind,collector_config,collection_interval_minutes,last_checked_at,next_check_at,last_collection_status,last_collection_error')
       .order('next_check_at', { ascending: true }),
     supabase
       .from('collection_jobs')
