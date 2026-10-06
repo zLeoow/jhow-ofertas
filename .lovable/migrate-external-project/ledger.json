@@ -1,0 +1,16 @@
+{
+  "source": "https://github.com/zLeoow/jhow-ofertas",
+  "capabilities": [
+    {"capability":"frontend code and routes","source":"src/","outcome":"migrate","status":"in_progress","next_action":"Port working views to TanStack Start"},
+    {"capability":"database schema","source":"supabase/migrations/001_initial_schema.sql","outcome":"migrate","status":"blocked","next_action":"Original migration enables RLS but lacks required table grants and policies; source SQL cannot be applied unchanged under current migration constraints"},
+    {"capability":"application records","source":"no export bundled","outcome":"migrate","status":"pending","next_action":"Request CSV or JSON table exports after preview"},
+    {"capability":"auth identities","source":"no login or user export detected","outcome":"migrate","status":"pending","next_action":"Request user export if original database contains users"},
+    {"capability":"authorization","source":"RLS enabled without policies","outcome":"migrate","status":"blocked","next_action":"Define access policy before live data access"},
+    {"capability":"uploaded file bytes","source":"none bundled","outcome":"preserve","status":"pending","next_action":"Confirm whether original storage contains files"},
+    {"capability":"external providers","source":"Telegram tables only; no provider code","outcome":"preserve","status":"pending","next_action":"Provide missing bot or collector implementation if operational"},
+    {"capability":"public endpoints callbacks webhooks schedules","source":"none detected","outcome":"preserve","status":"verified","next_action":"none"},
+    {"capability":"secrets","source":"VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are original backend configuration","outcome":"replace","status":"verified","next_action":"none"},
+    {"capability":"cutover","source":"GitHub repository","outcome":"migrate","status":"pending","next_action":"Publish and switch traffic after verification"},
+    {"capability":"verification","source":"original app demo behavior","outcome":"migrate","status":"pending","next_action":"Test preview routes and interactions"}
+  ]
+}

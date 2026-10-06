@@ -1,38 +1,29 @@
-# Jhow Ofertas
+# Welcome to your Lovable project
 
-Plataforma de inteligência de preços para monitorar produtos, construir histórico próprio, detectar quedas reais, calcular score de oportunidade e publicar ofertas qualificadas.
+This project was built with [Lovable](https://lovable.dev).
 
-## Stack
-- React + TypeScript + Vite
-- Tailwind CSS
-- Recharts
-- Supabase/PostgreSQL
+## Build with Lovable
 
-## Rodar localmente
-```bash
-npm install
-cp .env.example .env
+Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+
+- **Ship faster**: describe what you want to build and Lovable handles the code.
+- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
+- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+
+## Development
+
+Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+```sh
+git clone <this-repository-url>
+cd <repository-name>
+npm i
 npm run dev
 ```
 
-Sem credenciais do Supabase, a aplicação abre em **modo demonstração** usando dados simulados.
+## Built with
 
-## Banco
-A migration inicial está em:
-
-`supabase/migrations/001_initial_schema.sql`
-
-Ela prepara produtos, lojas, ofertas, histórico, score, fila de coleta, workers, Telegram, logs e configurações.
-
-## Princípio de análise
-O sistema não usa o campo “de/por” da loja como verdade principal. O desconto real é calculado comparando o preço atual com o histórico interno de 7/30/40/90 dias.
-
-## Score
-- 0–39: Ignorar
-- 40–59: Acompanhar
-- 60–74: Oferta
-- 75–89: Oferta quente
-- 90–100: Oferta excepcional
-
-## Integração com Lovable
-Depois de publicar este repositório no GitHub, conecte-o ao projeto do Lovable pela integração GitHub. O código está organizado para ser continuado pelo Lovable sem trocar a stack.
+- TanStack Start
+- TypeScript
+- React
+- Tailwind CSS
