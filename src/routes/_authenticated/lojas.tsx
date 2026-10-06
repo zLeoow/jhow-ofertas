@@ -1,0 +1,3 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { Crud } from '@/components/jhow/Crud'
+export const Route=createFileRoute('/_authenticated/lojas')({head:()=>({meta:[{title:'Lojas — Jhow Ofertas'},{name:'description',content:'Gerencie as lojas monitoradas.'},{property:'og:title',content:'Lojas — Jhow Ofertas'},{property:'og:description',content:'Gerencie as lojas monitoradas.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary'}]}),component:()=> <Crud area="stores"/>})

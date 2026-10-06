@@ -1,0 +1,4 @@
+import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router'
+import { Crud } from '@/components/jhow/Crud'
+export const Route=createFileRoute('/_authenticated/ofertas')({head:()=>({meta:[{title:'Ofertas — Jhow Ofertas'},{name:'description',content:'Gerencie ofertas e preços.'},{property:'og:title',content:'Ofertas — Jhow Ofertas'},{property:'og:description',content:'Gerencie ofertas e preços.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary'}]}),component:OffersLayout})
+function OffersLayout(){const pathname=useRouterState({select:state=>state.location.pathname});return pathname==='/ofertas'||pathname==='/ofertas/'?<><Crud area="product_offers"/><Outlet/></>:<Outlet/>}
