@@ -3,3 +3,7 @@
 - [x] Assign first administrator after a confirmed account exists.
 - [ ] Import original operational records and assets, if any (blocked: exports not provided).
 - [x] Finish Stage 3 offer analysis page, refresh, sample validation, and build verification.
+- [x] Stage 4 collection engine: queue, workers, logs, simulator, and global collection settings.
+- [x] Stage 5 coupon engine: CRUD, verification, expiry/minimum rules, effective price, score integration, and automatic reanalysis.
+- [ ] Stage 6 Telegram publishing, anti-spam, templates, and channel rules.
+- [ ] Finalize external collectors (Mercado Livre first), secrets, production deployment, and monitoring.
