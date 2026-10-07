@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { BadgeCheck, CircleDollarSign, Link2, Pencil, Search, ShieldAlert, Sparkles, Unlink } from 'lucide-react'
@@ -424,7 +424,7 @@ function AffiliatesPage() {
   )
 }
 
-function Metric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+function Metric({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
   return <div className="border border-border bg-card p-5"><div className="flex items-center justify-between text-sm text-muted-foreground">{label}{icon}</div><p className="mt-4 text-3xl font-semibold">{value}</p></div>
 }
 
