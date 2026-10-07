@@ -166,7 +166,7 @@ function CouponsPage() {
       return
     }
 
-    const duplicate = data.coupons.find((coupon) =>
+    const duplicate = data!.coupons.find((coupon) =>
       coupon.id !== editing?.id &&
       coupon.code.toLowerCase() === code.toLowerCase() &&
       (coupon.store_id ?? '') === form.store_id,
@@ -249,7 +249,7 @@ function CouponsPage() {
   }
 
   async function remove(coupon: Coupon) {
-    const linked = data.offers.filter((offer) => offer.coupon_id === coupon.id).length
+    const linked = data!.offers.filter((offer) => offer.coupon_id === coupon.id).length
     const detail = linked ? ` Ele está vinculado a ${linked} oferta(s); o vínculo será removido.` : ''
     if (!window.confirm(`Excluir o cupom ${coupon.code}?${detail}`)) return
     const result = await supabase.from('coupons').delete().eq('id', coupon.id)
