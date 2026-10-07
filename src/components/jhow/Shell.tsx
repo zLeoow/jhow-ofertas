@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/integrations/supabase/client'
 
 const nav = [
-  ['Dashboard','/painel',LayoutDashboard],['Produtos','/produtos',Package],['Ofertas','/ofertas',Tags],['Histórico','/historico',History],['Cupons','/cupons',TicketPercent],['Lojas','/lojas',Store],['Coletores','/coletores',Bot],['Workers','/workers',UsersRound],['Telegram','/telegram',MessageCircle],['Logs','/logs',ScrollText],['Configurações','/configuracoes',Settings],
+  ['Dashboard','/painel',LayoutDashboard],['Produtos','/produtos',Package],['Ofertas','/ofertas',Tags],['Histórico','/historico',History],['Cupons','/cupons',TicketPercent],['Afiliados','/afiliados',CircleDollarSign],['Lojas','/lojas',Store],['Coletores','/coletores',Bot],['Workers','/workers',UsersRound],['Telegram','/telegram',MessageCircle],['Logs','/logs',ScrollText],['Configurações','/configuracoes',Settings],
 ] as const
 export function Shell() {
   const [open,setOpen] = useState(false)
