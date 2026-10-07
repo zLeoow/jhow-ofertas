@@ -161,7 +161,7 @@ function CollectorsPage() {
   }
 
   function openSimulator() {
-    const offer = data.offers[0]
+    const offer = data!.offers[0]
     if (!offer) {
       setMessage('Cadastre uma oferta antes de usar o simulador.')
       return
@@ -177,7 +177,7 @@ function CollectorsPage() {
 
   function changeSimOffer(offerId: string) {
     setSimOfferId(offerId)
-    const offer = data.offers.find((item) => item.id === offerId)
+    const offer = data!.offers.find((item) => item.id === offerId)
     setSimPrice(offer?.current_price == null ? '' : String(offer.current_price))
     setSimOriginalPrice(offer?.original_price == null ? '' : String(offer.original_price))
     setSimShippingPrice(String(offer?.shipping_price ?? 0))
