@@ -29,6 +29,7 @@ type ChannelForm = {
   repost_min_drop_percent: string
   allowed_categories: string
   message_template: string
+  require_affiliate: boolean
   active: boolean
 }
 
@@ -40,6 +41,7 @@ const blank: ChannelForm = {
   repost_min_drop_percent: '5',
   allowed_categories: '',
   message_template: '',
+  require_affiliate: true,
   active: true,
 }
 
@@ -159,6 +161,7 @@ function TelegramPage() {
       repost_min_drop_percent: String(channel.repost_min_drop_percent),
       allowed_categories: channel.allowed_categories.join(', '),
       message_template: channel.message_template ?? '',
+      require_affiliate: channel.require_affiliate,
       active: channel.active,
     } : { ...blank })
   }
@@ -197,6 +200,7 @@ function TelegramPage() {
         .map((item) => item.trim())
         .filter(Boolean),
       message_template: form.message_template.trim() || null,
+      require_affiliate: form.require_affiliate,
       active: form.active,
     }
 
@@ -336,7 +340,7 @@ function TelegramPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="text-xs uppercase text-muted-foreground">
-              <tr>{['Canal', 'Destino', 'Score mínimo', 'Categorias', 'Anti-spam', 'Status', 'Ações'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}</tr>
+              <tr>{['Canal', 'Destino', 'Score mínimo', 'Categorias', 'Afiliado', 'Anti-spam', 'Status', 'Ações'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}</tr>
             </thead>
             <tbody>
               {channels.map((channel) => (
@@ -346,6 +350,9 @@ function TelegramPage() {
                   <td className="px-4 py-3">{channel.min_score}/100</td>
                   <td className="max-w-[260px] px-4 py-3 text-xs text-muted-foreground">
                     {channel.allowed_categories.length ? channel.allowed_categories.join(', ') : 'Todas'}
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className={channel.require_affiliate ? 'font-medium text-success' : 'text-muted-foreground'}>{channel.require_affiliate ? 'Obrigatório' : 'Opcional'}</span>
                   </td>
                   <td className="px-4 py-3 text-xs">
                     <p>{channel.repost_cooldown_minutes} min</p>
@@ -412,7 +419,7 @@ function TelegramPage() {
         <div className="overflow-x-auto border border-border bg-card">
           <table className="w-full min-w-[1200px] text-left text-sm">
             <thead className="border-b border-border bg-background text-xs uppercase text-muted-foreground">
-              <tr>{['Quando', 'Produto', 'Canal', 'Preço', 'Score', 'Status', 'Tentativas', 'Erro', 'Ações'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}</tr>
+              <tr>{['Quando', 'Produto', 'Canal', 'Preço', 'Link usado', 'Score', 'Status', 'Tentativas', 'Erro', 'Ações'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}</tr>
             </thead>
             <tbody>
               {postRows.map((post) => {
@@ -428,6 +435,10 @@ function TelegramPage() {
                     <td className="px-4 py-3">
                       <p className="font-semibold">{money(post.effective_price ?? post.price)}</p>
                       {payload['coupon_code'] ? <p className="text-xs text-success">cupom {String(payload['coupon_code'])}</p> : null}
+                    </td>
+                    <td className="max-w-[260px] px-4 py-3">
+                      <p className={post.used_affiliate ? 'font-medium text-success' : 'text-muted-foreground'}>{post.used_affiliate ? 'Afiliado' : 'URL normal'}</p>
+                      {post.published_url && <a href={post.published_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-primary" title={post.published_url}>{post.published_url}</a>}
                     </td>
                     <td className="px-4 py-3 font-semibold text-primary">{post.score ?? '—'}</td>
                     <td className="px-4 py-3">{statusBadge(post.status)}</td>
@@ -492,12 +503,21 @@ function TelegramPage() {
                 Tokens: {'{{produto}}'}, {'{{loja}}'}, {'{{preco}}'}, {'{{preco_final}}'}, {'{{cupom}}'}, {'{{frete}}'}, {'{{score}}'}, {'{{abaixo_media}}'}, {'{{classificacao}}'}.
               </span>
             </label>
-            <div className="flex items-center justify-between border border-border bg-background p-4">
-              <div>
-                <p className="text-sm font-medium">Canal ativo</p>
-                <p className="text-xs text-muted-foreground">Somente canais ativos recebem novas ofertas.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex items-center justify-between border border-border bg-background p-4">
+                <div>
+                  <p className="text-sm font-medium">Exigir afiliado</p>
+                  <p className="text-xs text-muted-foreground">O canal não recebe ofertas sem link afiliado elegível.</p>
+                </div>
+                <Switch checked={form.require_affiliate} onCheckedChange={(value) => setForm({ ...form, require_affiliate: value })} />
               </div>
-              <Switch checked={form.active} onCheckedChange={(value) => setForm({ ...form, active: value })} />
+              <div className="flex items-center justify-between border border-border bg-background p-4">
+                <div>
+                  <p className="text-sm font-medium">Canal ativo</p>
+                  <p className="text-xs text-muted-foreground">Somente canais ativos recebem novas ofertas.</p>
+                </div>
+                <Switch checked={form.active} onCheckedChange={(value) => setForm({ ...form, active: value })} />
+              </div>
             </div>
             {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
             <DialogFooter>
