@@ -306,7 +306,11 @@ export type Database = {
       product_offers: {
         Row: {
           active: boolean
+          affiliate_last_error: string | null
+          affiliate_source: string | null
           affiliate_url: string | null
+          affiliate_verified: boolean
+          affiliate_verified_at: string | null
           collection_interval_minutes: number
           collector_config: Json
           collector_enabled: boolean
@@ -328,7 +332,11 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          affiliate_last_error?: string | null
+          affiliate_source?: string | null
           affiliate_url?: string | null
+          affiliate_verified?: boolean
+          affiliate_verified_at?: string | null
           collection_interval_minutes?: number
           collector_config?: Json
           collector_enabled?: boolean
@@ -350,7 +358,11 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          affiliate_last_error?: string | null
+          affiliate_source?: string | null
           affiliate_url?: string | null
+          affiliate_verified?: boolean
+          affiliate_verified_at?: string | null
           collection_interval_minutes?: number
           collector_config?: Json
           collector_enabled?: boolean
@@ -457,6 +469,10 @@ export type Database = {
       stores: {
         Row: {
           active: boolean
+          affiliate_enabled: boolean
+          affiliate_notes: string | null
+          affiliate_program: string | null
+          affiliate_required: boolean
           affiliate_template: string | null
           created_at: string
           id: string
@@ -469,6 +485,10 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          affiliate_enabled?: boolean
+          affiliate_notes?: string | null
+          affiliate_program?: string | null
+          affiliate_required?: boolean
           affiliate_template?: string | null
           created_at?: string
           id?: string
@@ -481,6 +501,10 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          affiliate_enabled?: boolean
+          affiliate_notes?: string | null
+          affiliate_program?: string | null
+          affiliate_required?: boolean
           affiliate_template?: string | null
           created_at?: string
           id?: string
@@ -504,6 +528,7 @@ export type Database = {
           name: string
           repost_cooldown_minutes: number
           repost_min_drop_percent: number
+          require_affiliate: boolean
           updated_at: string
         }
         Insert: {
@@ -516,6 +541,7 @@ export type Database = {
           name: string
           repost_cooldown_minutes?: number
           repost_min_drop_percent?: number
+          require_affiliate?: boolean
           updated_at?: string
         }
         Update: {
@@ -528,6 +554,7 @@ export type Database = {
           name?: string
           repost_cooldown_minutes?: number
           repost_min_drop_percent?: number
+          require_affiliate?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -546,11 +573,13 @@ export type Database = {
           payload: Json
           price: number | null
           product_offer_id: string | null
+          published_url: string | null
           score: number | null
           sent_at: string | null
           source_score_id: number | null
           status: string
           telegram_message_id: string | null
+          used_affiliate: boolean
         }
         Insert: {
           attempts?: number
@@ -565,11 +594,13 @@ export type Database = {
           payload?: Json
           price?: number | null
           product_offer_id?: string | null
+          published_url?: string | null
           score?: number | null
           sent_at?: string | null
           source_score_id?: number | null
           status?: string
           telegram_message_id?: string | null
+          used_affiliate?: boolean
         }
         Update: {
           attempts?: number
