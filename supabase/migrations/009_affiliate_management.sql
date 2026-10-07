@@ -30,6 +30,27 @@ values (
 )
 on conflict (key) do nothing;
 
+
+create or replace function public.reset_affiliate_verification_on_url_change()
+returns trigger
+language plpgsql
+set search_path = ''
+as $
+begin
+  if old.affiliate_url is distinct from new.affiliate_url then
+    new.affiliate_verified := false;
+    new.affiliate_verified_at := null;
+    new.affiliate_last_error := null;
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists offer_affiliate_url_reset_verification on public.product_offers;
+create trigger offer_affiliate_url_reset_verification
+before update of affiliate_url on public.product_offers
+for each row execute function public.reset_affiliate_verification_on_url_change();
+
 create index if not exists idx_product_offers_affiliate_coverage
   on public.product_offers(store_id, affiliate_verified)
   where active;
