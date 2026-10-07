@@ -106,8 +106,8 @@ async function telegramApi<T>(method: string, body?: Record<string, unknown>): P
   const token = botToken()
   const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: body ? 'POST' : 'GET',
-    headers: body ? { 'content-type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+    headers: body ? { "content-type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : null,
   })
 
   const result = await response.json() as {
@@ -208,7 +208,7 @@ async function sendPostInternal(postId: number) {
 export const getTelegramBotStatus = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await requireAdmin(context as AdminContext)
+    await requireAdmin(context as unknown as AdminContext)
     const configured = Boolean(process.env['TELEGRAM_BOT_TOKEN']?.trim())
     if (!configured) return { configured: false, connected: false, username: null as string | null, error: null as string | null }
 
@@ -234,7 +234,7 @@ export const sendTelegramTest = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .validator(z.object({ chatId: z.string().min(1).max(128) }))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context as AdminContext)
+    await requireAdmin(context as unknown as AdminContext)
     const result = await telegramApi<{ message_id: number }>('sendMessage', {
       chat_id: data.chatId,
       text: '✅ <b>Jhow Ofertas conectado!</b>\n\nO bot já consegue publicar neste canal.',
@@ -247,7 +247,7 @@ export const sendTelegramPost = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .validator(z.object({ postId: z.number().int().positive() }))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context as AdminContext)
+    await requireAdmin(context as unknown as AdminContext)
     return sendPostInternal(data.postId)
   })
 
@@ -255,7 +255,7 @@ export const processTelegramQueue = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .validator(z.object({ limit: z.number().int().min(1).max(20).default(10) }))
   .handler(async ({ data, context }) => {
-    await requireAdmin(context as AdminContext)
+    await requireAdmin(context as unknown as AdminContext)
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
 
     const pending = await supabaseAdmin
