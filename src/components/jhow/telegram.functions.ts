@@ -153,7 +153,8 @@ async function sendPostInternal(postId: number) {
     ? post.payload as TelegramPayload
     : {}
 
-  const offerUrl = String(payload['affiliate_url'] || payload['offer_url'] || '').trim()
+  const offerUrl = post.published_url?.trim() ?? ''
+  if (!offerUrl) throw new Error('Publicação sem published_url. Reenfileire a oferta após configurar as regras de afiliados.')
   const text = buildMessage(payload, post.score, channel.message_template)
 
   await supabaseAdmin
@@ -171,11 +172,9 @@ async function sendPostInternal(postId: number) {
       chat_id: channel.chat_id,
       text,
       parse_mode: 'HTML',
-      ...(offerUrl ? {
-        reply_markup: {
-          inline_keyboard: [[{ text: '🛒 Ver oferta', url: offerUrl }]],
-        },
-      } : {}),
+      reply_markup: {
+        inline_keyboard: [[{ text: '🛒 Ver oferta', url: offerUrl }]],
+      },
     })
 
     await supabaseAdmin
