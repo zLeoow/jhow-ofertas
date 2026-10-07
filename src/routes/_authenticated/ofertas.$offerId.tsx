@@ -6,6 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Button } from '@/components/ui/button'
 import { latestScore, money } from '@/components/jhow/data'
 import { couponLabel } from '@/components/jhow/coupons'
+import { affiliateSettingsFromJson, affiliateStatus } from '@/components/jhow/affiliates'
 import { useAdmin } from '@/components/jhow/useAdmin'
 import { supabase } from '@/integrations/supabase/client'
 
@@ -54,6 +55,8 @@ function OfferAnalysis() {
   const store = data.stores.find(item => item.id === offer.store_id)
   const score = latestScore(data, offerId)
   const coupon = offer.coupon_id ? data.coupons.find(item => item.id === offer.coupon_id) : undefined
+  const affiliateSettings = affiliateSettingsFromJson(data.settings.find(item => item.key === 'affiliate')?.value)
+  const affiliate = store ? affiliateStatus(offer, store, affiliateSettings) : null
   const history = data.history.filter(item => item.product_offer_id === offerId)
   const chartData = history.map(item => ({ date: new Date(item.collected_at).toLocaleDateString('pt-BR'), price: Number(item.price), id: item.id }))
   const reasons = Array.isArray(score?.reasons) ? score.reasons.filter((reason): reason is { label: string; points: number } =>
@@ -81,6 +84,27 @@ function OfferAnalysis() {
     <section className="grid gap-6 border-y border-border py-7 md:grid-cols-[1fr_1fr]" aria-label="Resultado da análise">
       <div><p className="text-sm text-muted-foreground">Preço atual</p><p className="mt-2 text-4xl font-semibold">{money(offer.current_price)}</p>{score?.coupon_applied&&<div className="mt-3 border-l-2 border-success bg-success/10 px-3 py-2"><p className="text-xs font-medium uppercase tracking-wide text-success">Preço efetivo com cupom</p><p className="mt-1 text-2xl font-semibold text-success">{money(score.effective_price)}</p><p className="mt-1 text-xs text-muted-foreground">Economia {money(score.coupon_discount_amount)}{coupon ? ' · '+coupon.code+' · '+couponLabel(coupon) : ''}</p></div>}<p className="mt-3 text-sm text-muted-foreground">{offer.in_stock ? 'Em estoque' : 'Sem estoque'} · {store?.name ?? '—'}</p></div>
       <div className="flex flex-wrap items-center gap-5 md:justify-end"><div><p className="text-sm text-muted-foreground">Score</p><p className="text-5xl font-semibold text-primary">{score ? score.score : '—'}<span className="text-lg font-normal text-muted-foreground"> / 100</span></p></div><div><p className="text-lg font-semibold">{score?.classification ?? 'Sem análise'}</p><p className="mt-1 text-sm text-muted-foreground">Confiança {score ? percent(Number(score.confidence) * 100) : '—'}</p><p className="text-sm text-muted-foreground">{score?.sample_count ?? '—'} amostras anteriores</p></div></div>
+    </section>
+
+    <section className="border border-border bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Monetização</p>
+          <p className="mt-1 text-lg font-semibold">{store?.affiliate_program ?? 'Sem programa configurado'}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{store?.name ?? 'Loja'} · origem {offer.affiliate_source ?? '—'}</p>
+        </div>
+        <div className="text-right">
+          <p className={affiliate?.eligible ? 'font-medium text-success' : 'font-medium text-amber-500'}>{affiliate?.label ?? 'Indisponível'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{offer.affiliate_verified ? 'verificado' : 'não verificado'}</p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="border border-border bg-background p-3"><p className="text-xs text-muted-foreground">Link afiliado</p><p className="mt-1 font-semibold">{offer.affiliate_url ? 'Presente' : 'Ausente'}</p></div>
+        <div className="border border-border bg-background p-3"><p className="text-xs text-muted-foreground">Verificado</p><p className="mt-1 font-semibold">{offer.affiliate_verified ? 'Sim' : 'Não'}</p></div>
+        <div className="border border-border bg-background p-3"><p className="text-xs text-muted-foreground">Elegível para Telegram</p><p className={`mt-1 font-semibold ${affiliate?.eligible ? 'text-success' : 'text-muted-foreground'}`}>{affiliate?.eligible ? 'Sim' : 'Não'}</p></div>
+      </div>
+      {offer.affiliate_url && <a href={offer.affiliate_url} target="_blank" rel="noopener noreferrer" className="mt-4 block truncate text-sm text-primary">{offer.affiliate_url}</a>}
+      {affiliate && !affiliate.eligible && <p className="mt-3 text-xs text-muted-foreground">{affiliate.reason}</p>}
     </section>
 
     {coupon && <section className="border border-border bg-card p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-muted-foreground">Cupom vinculado</p><p className="mt-1 font-mono text-xl font-semibold">{coupon.code}</p><p className="mt-1 text-sm text-muted-foreground">{couponLabel(coupon)}{coupon.minimum_purchase!=null ? ' · mínimo '+money(Number(coupon.minimum_purchase)) : ''}</p></div><div className="text-right"><p className={coupon.verified&&coupon.active?'font-medium text-success':'font-medium text-amber-500'}>{coupon.verified&&coupon.active?'Verificado':'Ainda não aplicável'}</p><p className="mt-1 text-xs text-muted-foreground">{coupon.expires_at ? 'expira '+new Date(coupon.expires_at).toLocaleString('pt-BR') : 'sem expiração'}</p></div></div>{score?.coupon_applied&&<div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="border border-border bg-background p-3"><p className="text-xs text-muted-foreground">Preço efetivo</p><p className="mt-1 font-semibold">{money(score.effective_price)}</p></div><div className="border border-border bg-background p-3"><p className="text-xs text-muted-foreground">Desconto do cupom</p><p className="mt-1 font-semibold text-success">{money(score.coupon_discount_amount)}</p></div><div className="border border-border bg-background p-3"><p className="text-xs text-muted-foreground">Frete efetivo</p><p className="mt-1 font-semibold">{money(score.effective_shipping_price)}</p></div></div>}</section>}
