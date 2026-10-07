@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
+import { Route as AuthenticatedAfiliadosRouteImport } from './routes/_authenticated/afiliados'
 import { Route as AuthenticatedColetoresRouteImport } from './routes/_authenticated/coletores'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedCuponsRouteImport } from './routes/_authenticated/cupons'
@@ -44,6 +45,11 @@ const SemAcessoRoute = SemAcessoRouteImport.update({
   id: '/sem-acesso',
   path: '/sem-acesso',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAfiliadosRoute = AuthenticatedAfiliadosRouteImport.update({
+  id: '/afiliados',
+  path: '/afiliados',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedColetoresRoute = AuthenticatedColetoresRouteImport.update({
   id: '/coletores',
@@ -112,6 +118,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
+  '/afiliados': typeof AuthenticatedAfiliadosRoute
+  '/afiliados': typeof AuthenticatedAfiliadosRoute
   '/coletores': typeof AuthenticatedColetoresRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/cupons': typeof AuthenticatedCuponsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
+  '/_authenticated/afiliados': typeof AuthenticatedAfiliadosRoute
   '/_authenticated/coletores': typeof AuthenticatedColetoresRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/cupons': typeof AuthenticatedCuponsRoute
@@ -167,6 +176,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/sem-acesso'
+    | '/afiliados'
+    | '/afiliados'
     | '/coletores'
     | '/configuracoes'
     | '/cupons'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/sem-acesso'
+    | '/_authenticated/afiliados'
     | '/_authenticated/coletores'
     | '/_authenticated/configuracoes'
     | '/_authenticated/cupons'
@@ -252,6 +264,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sem-acesso'
       preLoaderRoute: typeof SemAcessoRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/afiliados': {
+      id: '/_authenticated/afiliados'
+      path: '/afiliados'
+      fullPath: '/afiliados'
+      preLoaderRoute: typeof AuthenticatedAfiliadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/coletores': {
       id: '/_authenticated/coletores'
@@ -352,6 +371,7 @@ const AuthenticatedOfertasRouteWithChildren =
   AuthenticatedOfertasRoute._addFileChildren(AuthenticatedOfertasRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAfiliadosRoute: typeof AuthenticatedAfiliadosRoute
   AuthenticatedColetoresRoute: typeof AuthenticatedColetoresRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedCuponsRoute: typeof AuthenticatedCuponsRoute
@@ -366,6 +386,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAfiliadosRoute: AuthenticatedAfiliadosRoute,
   AuthenticatedColetoresRoute: AuthenticatedColetoresRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedCuponsRoute: AuthenticatedCuponsRoute,
