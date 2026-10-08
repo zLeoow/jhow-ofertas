@@ -23,6 +23,10 @@ export const Route = createFileRoute('/_authenticated/coletores')({
     meta: [
       { title: 'Coletores — Jhow Ofertas' },
       { name: 'description', content: 'Controle dos coletores e da fila de monitoramento.' },
+      { property: 'og:title', content: 'Coletores — Jhow Ofertas' },
+      { property: 'og:description', content: 'Controle dos coletores e da fila de monitoramento.' },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: CollectorsPage,
@@ -196,7 +200,7 @@ function CollectorsPage() {
     const { data: jobId, error: simulationError } = await supabase.rpc('simulate_collection', {
       p_offer_id: simOfferId,
       p_price: price,
-      p_original_price: simOriginalPrice.trim() ? Number(simOriginalPrice) : null,
+      ...(simOriginalPrice.trim() ? { p_original_price: Number(simOriginalPrice) } : {}),
       p_shipping_price: simShippingPrice.trim() ? Number(simShippingPrice) : 0,
       p_in_stock: simInStock,
     })
