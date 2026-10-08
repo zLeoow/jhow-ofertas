@@ -562,13 +562,17 @@ export type Database = {
       telegram_posts: {
         Row: {
           attempts: number
+          automation_error: string | null
           channel_id: string | null
           created_at: string
           dedupe_key: string | null
           effective_price: number | null
           error: string | null
+          finished_at: string | null
           id: number
           last_attempt_at: string | null
+          lock_id: string | null
+          locked_at: string | null
           next_attempt_at: string | null
           payload: Json
           price: number | null
@@ -583,13 +587,17 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          automation_error?: string | null
           channel_id?: string | null
           created_at?: string
           dedupe_key?: string | null
           effective_price?: number | null
           error?: string | null
+          finished_at?: string | null
           id?: number
           last_attempt_at?: string | null
+          lock_id?: string | null
+          locked_at?: string | null
           next_attempt_at?: string | null
           payload?: Json
           price?: number | null
@@ -604,22 +612,28 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          automation_error?: string | null
           channel_id?: string | null
           created_at?: string
           dedupe_key?: string | null
           effective_price?: number | null
           error?: string | null
+          finished_at?: string | null
           id?: number
           last_attempt_at?: string | null
+          lock_id?: string | null
+          locked_at?: string | null
           next_attempt_at?: string | null
           payload?: Json
           price?: number | null
           product_offer_id?: string | null
+          published_url?: string | null
           score?: number | null
           sent_at?: string | null
           source_score_id?: number | null
           status?: string
           telegram_message_id?: string | null
+          used_affiliate?: boolean
         }
         Relationships: [
           {
@@ -644,6 +658,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      telegram_worker_runs: {
+        Row: {
+          claimed_count: number
+          error: string | null
+          failed_count: number
+          finished_at: string | null
+          id: string
+          metadata: Json
+          retry_count: number
+          sent_count: number
+          stale_recovered_count: number
+          started_at: string
+          status: string
+        }
+        Insert: {
+          claimed_count?: number
+          error?: string | null
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          retry_count?: number
+          sent_count?: number
+          stale_recovered_count?: number
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          claimed_count?: number
+          error?: string | null
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          retry_count?: number
+          sent_count?: number
+          stale_recovered_count?: number
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -705,9 +761,38 @@ export type Database = {
     }
     Functions: {
       analyze_offer: { Args: { p_offer_id: string }; Returns: number }
+      calculate_offer_score_internal: {
+        Args: { p_offer_id: string }
+        Returns: number
+      }
+      claim_telegram_posts: {
+        Args: {
+          p_limit?: number | null
+          p_lock_id?: string
+          p_force?: boolean
+          p_post_id?: number | null
+        }
+        Returns: Database["public"]["Tables"]["telegram_posts"]["Row"][]
+      }
+      complete_telegram_post: {
+        Args: { p_post_id: number; p_lock_id: string; p_message_id: string }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       queue_telegram_offer_admin: {
         Args: { p_offer_id: string }
         Returns: number
+      }
+      recover_stale_telegram_posts: { Args: never; Returns: Json }
+      retry_telegram_post: {
+        Args: { p_post_id: number; p_lock_id: string; p_error: string }
+        Returns: string
       }
       simulate_collection: {
         Args: {
@@ -718,17 +803,6 @@ export type Database = {
           p_in_stock?: boolean
         }
         Returns: number
-      }
-      calculate_offer_score_internal: {
-        Args: { p_offer_id: string }
-        Returns: number
-      }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
       }
     }
     Enums: {
