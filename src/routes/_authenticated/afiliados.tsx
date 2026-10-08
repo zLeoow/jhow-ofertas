@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { BadgeCheck, CircleDollarSign, Link2, Pencil, Search, ShieldAlert, Sparkles, Unlink } from 'lucide-react'
@@ -28,6 +28,10 @@ export const Route = createFileRoute('/_authenticated/afiliados')({
     meta: [
       { title: 'Afiliados — Jhow Ofertas' },
       { name: 'description', content: 'Gerencie programas e links de afiliado usados nas publicações.' },
+      { property: 'og:title', content: 'Afiliados — Jhow Ofertas' },
+      { property: 'og:description', content: 'Gerencie programas e links de afiliado usados nas publicações.' },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: AffiliatesPage,
@@ -69,7 +73,7 @@ function AffiliatesPage() {
     return { offer, store, status }
   })
 
-  const filteredOffers = useMemo(() => {
+  const filteredOffers = (() => {
     const term = search.trim().toLowerCase()
     return offersWithStatus.filter(({ offer, store, status }) => {
       const text = `${productName(offer.product_id)} ${store?.name ?? ''} ${offer.affiliate_url ?? ''} ${offer.affiliate_source ?? ''}`.toLowerCase()
@@ -81,7 +85,7 @@ function AffiliatesPage() {
         (filter === 'missing' && !offer.affiliate_url)
       return matchesText && matchesFilter
     })
-  }, [data, filter, search, settings])
+  })()
 
   const enabledStores = data.stores.filter((store) => store.affiliate_enabled).length
   const withLink = data.offers.filter((offer) => Boolean(offer.affiliate_url)).length
