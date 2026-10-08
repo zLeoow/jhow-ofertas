@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, CheckCircle2, Clock3, Pencil, Play, Plus, RefreshCw, Search, Send, Trash2, XCircle } from 'lucide-react'
+import { Activity, Bot, CheckCircle2, Clock3, Pencil, Play, Plus, RefreshCw, Search, Send, Settings2, Trash2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,10 +16,27 @@ import {
   sendTelegramPost,
   sendTelegramTest,
 } from '@/components/jhow/telegram.functions'
-import type { Database } from '@/integrations/supabase/types'
+import type { Database, Json } from '@/integrations/supabase/types'
 
 type Channel = Database['public']['Tables']['telegram_channels']['Row']
 type Post = Database['public']['Tables']['telegram_posts']['Row']
+type WorkerRun = Database['public']['Tables']['telegram_worker_runs']['Row']
+
+type AutomationSettings = {
+  enabled: boolean
+  batch_size: number
+  max_attempts: number
+  retry_delay_minutes: number
+  stale_sending_minutes: number
+}
+
+const automationDefaults: AutomationSettings = {
+  enabled: false,
+  batch_size: 10,
+  max_attempts: 5,
+  retry_delay_minutes: 5,
+  stale_sending_minutes: 10,
+}
 
 type ChannelForm = {
   name: string
@@ -59,14 +76,38 @@ export const Route = createFileRoute('/_authenticated/telegram')({
   component: TelegramPage,
 })
 
+function parseAutomationSettings(value: Json | null | undefined): AutomationSettings {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return automationDefaults
+  const row = value as Record<string, unknown>
+  const bounded = (key: keyof AutomationSettings, fallback: number, min: number, max: number) => {
+    const raw = Number(row[key])
+    return Number.isFinite(raw) ? Math.max(min, Math.min(max, Math.trunc(raw))) : fallback
+  }
+  return {
+    enabled: typeof row.enabled === 'boolean' ? row.enabled : automationDefaults.enabled,
+    batch_size: bounded('batch_size', 10, 1, 50),
+    max_attempts: bounded('max_attempts', 5, 1, 20),
+    retry_delay_minutes: bounded('retry_delay_minutes', 5, 1, 1440),
+    stale_sending_minutes: bounded('stale_sending_minutes', 10, 1, 1440),
+  }
+}
+
 async function loadTelegram() {
-  const [channels, posts] = await Promise.all([
+  const [channels, posts, settings, workerRuns] = await Promise.all([
     supabase.from('telegram_channels').select('*').order('name'),
     supabase.from('telegram_posts').select('*').order('created_at', { ascending: false }).limit(300),
+    supabase.from('settings').select('value,updated_at').eq('key', 'telegram_automation').maybeSingle(),
+    supabase.from('telegram_worker_runs').select('*').order('started_at', { ascending: false }).limit(20),
   ])
-  if (channels.error) throw channels.error
-  if (posts.error) throw posts.error
-  return { channels: channels.data ?? [], posts: posts.data ?? [] }
+  const error = [channels, posts, settings, workerRuns].find((result) => result.error)?.error
+  if (error) throw error
+  return {
+    channels: channels.data ?? [],
+    posts: posts.data ?? [],
+    automation: parseAutomationSettings(settings.data?.value),
+    automationUpdatedAt: settings.data?.updated_at ?? null,
+    workerRuns: workerRuns.data ?? [],
+  }
 }
 
 function formatDate(value: string | null | undefined) {
@@ -76,11 +117,11 @@ function formatDate(value: string | null | undefined) {
 
 function statusBadge(status: string) {
   const cls =
-    status === 'sent'
+    status === 'sent' || status === 'completed'
       ? 'border-success/30 bg-success/10 text-success'
-      : status === 'failed'
+      : status === 'failed' || status === 'error' || status === 'completed_with_errors'
         ? 'border-destructive/30 bg-destructive/10 text-destructive'
-        : status === 'sending'
+        : status === 'sending' || status === 'running'
           ? 'border-primary/30 bg-primary/10 text-primary'
           : 'border-amber-500/30 bg-amber-500/10 text-amber-600'
   const labels: Record<string, string> = {
@@ -88,6 +129,13 @@ function statusBadge(status: string) {
     sending: 'Enviando',
     sent: 'Enviado',
     failed: 'Falhou',
+    completed: 'Concluído',
+    partial: 'Parcial',
+    completed_with_errors: 'Com erros',
+    skipped_disabled: 'Desligado',
+    token_missing: 'Sem token',
+    error: 'Erro',
+    running: 'Executando',
   }
   return <span className={`inline-flex border px-2 py-1 text-xs font-medium ${cls}`}>{labels[status] ?? status}</span>
 }
@@ -106,7 +154,9 @@ function TelegramPage() {
 
   const [editing, setEditing] = useState<Channel | null | undefined>(undefined)
   const [form, setForm] = useState<ChannelForm>(blank)
+  const [automationDraft, setAutomationDraft] = useState<AutomationSettings | null>(null)
   const [saving, setSaving] = useState(false)
+  const [savingAutomation, setSavingAutomation] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [offerId, setOfferId] = useState('')
@@ -119,7 +169,9 @@ function TelegramPage() {
   if (adminError || !admin) return <p role="alert" className="text-destructive">Não foi possível carregar produtos/ofertas: {adminError?.message}</p>
   if (telegram.error || !telegram.data) return <p role="alert" className="text-destructive">Não foi possível carregar o Telegram: {telegram.error?.message}</p>
 
-  const { channels, posts } = telegram.data
+  const { channels, posts, workerRuns } = telegram.data
+  const automation = automationDraft ?? telegram.data.automation
+  const lastRun = workerRuns[0] as WorkerRun | undefined
   const productName = (id: string | null) => {
     const offer = id ? admin.offers.find((item) => item.id === id) : undefined
     return offer ? admin.products.find((item) => item.id === offer.product_id)?.name ?? 'Produto removido' : '—'
@@ -136,6 +188,7 @@ function TelegramPage() {
         payload['store_name'],
         payload['coupon_code'],
         post.error,
+        post.automation_error,
       ].filter(Boolean).join(' ').toLowerCase()
       return (statusFilter === 'all' || post.status === statusFilter) && (!term || text.includes(term))
     })
@@ -152,6 +205,28 @@ function TelegramPage() {
       queryClient.invalidateQueries({ queryKey: ['telegram-bot-status'] }),
       queryClient.invalidateQueries({ queryKey: ['admin-data'] }),
     ])
+  }
+
+  async function saveAutomation() {
+    setSavingAutomation(true)
+    setMessage('')
+    const result = await supabase.from('settings').upsert({
+      key: 'telegram_automation',
+      value: automation as unknown as Json,
+      updated_at: new Date().toISOString(),
+    })
+    setSavingAutomation(false)
+    if (result.error) {
+      setMessage(result.error.message)
+      return
+    }
+    setAutomationDraft(null)
+    setMessage('Configuração da automação salva.')
+    await refresh()
+  }
+
+  function updateAutomation<K extends keyof AutomationSettings>(key: K, value: AutomationSettings[K]) {
+    setAutomationDraft({ ...automation, [key]: value })
   }
 
   function open(channel?: Channel) {
@@ -199,10 +274,7 @@ function TelegramPage() {
       min_score: minScore,
       repost_cooldown_minutes: cooldown,
       repost_min_drop_percent: minDrop,
-      allowed_categories: form.allowed_categories
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
+      allowed_categories: form.allowed_categories.split(',').map((item) => item.trim()).filter(Boolean),
       message_template: form.message_template.trim() || null,
       require_affiliate: form.require_affiliate,
       active: form.active,
@@ -218,7 +290,6 @@ function TelegramPage() {
       setMessage(result.error.message)
       return
     }
-
     setEditing(undefined)
     setMessage('Canal salvo.')
     await refresh()
@@ -257,7 +328,7 @@ function TelegramPage() {
     }
     setMessage(result.data
       ? `${result.data} publicação(ões) adicionada(s) à fila.`
-      : 'A oferta não entrou na fila. Verifique score mínimo, categoria, estoque e anti-spam.')
+      : 'A oferta não entrou na fila. Verifique score mínimo, categoria, estoque, afiliado e anti-spam.')
     await refresh()
   }
 
@@ -265,8 +336,12 @@ function TelegramPage() {
     setProcessing(true)
     setMessage('')
     try {
-      const result = await processTelegramQueue({ data: { limit: 10 } })
-      setMessage(`Fila processada: ${result.processed} item(ns), ${result.sent} enviado(s), ${result.errors.length} erro(s).`)
+      const result = await processTelegramQueue({ data: { limit: automation.batch_size } })
+      setMessage(
+        result.status === 'token_missing'
+          ? 'Fila não processada: TELEGRAM_BOT_TOKEN ainda não está configurado.'
+          : `Worker: ${result.claimed} reivindicado(s), ${result.sent} enviado(s), ${result.retried} retry(s), ${result.failed} falha(s).`,
+      )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível processar a fila.')
     } finally {
@@ -279,8 +354,10 @@ function TelegramPage() {
     setSendingPost(post.id)
     setMessage('')
     try {
-      await sendTelegramPost({ data: { postId: post.id } })
-      setMessage(`Publicação #${post.id} enviada.`)
+      const result = await sendTelegramPost({ data: { postId: post.id } })
+      setMessage(result.status === 'token_missing'
+        ? 'Não enviado: TELEGRAM_BOT_TOKEN ainda não está configurado.'
+        : `Publicação #${post.id}: worker ${result.status}.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao enviar publicação.')
     } finally {
@@ -294,9 +371,7 @@ function TelegramPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Telegram</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Canais, regras de publicação, anti-spam e fila de ofertas.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Canais, fila, anti-spam e automação de publicação.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => open()}><Plus size={16} /> Adicionar canal</Button>
@@ -305,41 +380,83 @@ function TelegramPage() {
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="border border-border bg-card p-5">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">Bot <Bot size={18} /></div>
-          <p className="mt-4 text-lg font-semibold">
-            {botStatus.isPending ? 'Verificando...' : botStatus.data?.connected ? 'Conectado' : botStatus.data?.configured ? 'Com erro' : 'Sem token'}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {botStatus.data?.username ? `@${botStatus.data.username}` : botStatus.data?.error ?? 'TELEGRAM_BOT_TOKEN'}
-          </p>
-        </div>
-        <div className="border border-border bg-card p-5">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">Canais ativos <Send size={18} /></div>
-          <p className="mt-4 text-3xl font-semibold">{activeChannels}</p>
-        </div>
-        <div className="border border-border bg-card p-5">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">Pendentes <Clock3 size={18} /></div>
-          <p className="mt-4 text-3xl font-semibold">{pending}</p>
-        </div>
-        <div className="border border-border bg-card p-5">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">Enviados <CheckCircle2 size={18} /></div>
-          <p className="mt-4 text-3xl font-semibold">{sent}</p>
-        </div>
-        <div className="border border-border bg-card p-5">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">Falhas <XCircle size={18} /></div>
-          <p className="mt-4 text-3xl font-semibold">{failed}</p>
-        </div>
+        <Metric label="Bot" icon={<Bot size={18} />} value={botStatus.isPending ? 'Verificando...' : botStatus.data?.connected ? 'Conectado' : botStatus.data?.configured ? 'Com erro' : 'Sem token'} detail={botStatus.data?.username ? `@${botStatus.data.username}` : botStatus.data?.error ?? 'TELEGRAM_BOT_TOKEN'} />
+        <Metric label="Canais ativos" icon={<Send size={18} />} value={activeChannels} />
+        <Metric label="Pendentes" icon={<Clock3 size={18} />} value={pending} />
+        <Metric label="Enviados" icon={<CheckCircle2 size={18} />} value={sent} />
+        <Metric label="Falhas" icon={<XCircle size={18} />} value={failed} />
       </section>
 
       {message && <div className="border border-border bg-card p-3 text-sm text-muted-foreground">{message}</div>}
 
-      <section className="border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-4">
+      <section className="border border-border bg-card p-5">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="font-semibold">Canais</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Use @username para canal público ou o chat_id numérico.</p>
+            <div className="flex items-center gap-2"><Activity size={19} className="text-primary" /><h2 className="font-semibold">Automação 24/7</h2></div>
+            <p className="mt-1 text-xs text-muted-foreground">Worker com claim atômico, retry e recuperação de posts travados.</p>
           </div>
+          <Button onClick={saveAutomation} disabled={savingAutomation}><Settings2 size={16} /> {savingAutomation ? 'Salvando...' : 'Salvar automação'}</Button>
+        </div>
+
+        {automation.enabled && !botStatus.data?.configured && (
+          <div className="mb-4 border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">
+            A automação está ligada, mas TELEGRAM_BOT_TOKEN não está configurado. O worker termina em segurança sem reivindicar nem enviar posts.
+          </div>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <ToggleCard
+            title="Automação"
+            description={automation.enabled ? 'Worker autorizado a processar a fila.' : 'Nenhum processamento automático.'}
+            checked={automation.enabled}
+            onChange={(value) => updateAutomation('enabled', value)}
+          />
+          <NumberField label="Lote" value={automation.batch_size} min={1} max={50} onChange={(value) => updateAutomation('batch_size', value)} />
+          <NumberField label="Tentativas máximas" value={automation.max_attempts} min={1} max={20} onChange={(value) => updateAutomation('max_attempts', value)} />
+          <NumberField label="Retry" value={automation.retry_delay_minutes} min={1} max={1440} suffix="min" onChange={(value) => updateAutomation('retry_delay_minutes', value)} />
+          <NumberField label="Sending travado" value={automation.stale_sending_minutes} min={1} max={1440} suffix="min" onChange={(value) => updateAutomation('stale_sending_minutes', value)} />
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <InfoCard title="Agendador preparado" value="5 min" detail="Workflow/cron chama /api/telegram-worker. Cloud Job pode substituir sem mudar o worker." />
+          <InfoCard title="Token do bot" value={botStatus.data?.configured ? 'Configurado' : 'Não configurado'} detail="O valor nunca é exibido nem salvo no banco." />
+          <InfoCard title="Última execução" value={lastRun ? formatDate(lastRun.started_at) : 'Nunca'} detail={lastRun ? lastRun.status : 'Sem execuções registradas'} />
+          <InfoCard title="Último resultado" value={lastRun ? `${lastRun.sent_count} enviados` : '—'} detail={lastRun ? `${lastRun.retry_count} retries · ${lastRun.failed_count} falhas` : 'Aguardando worker'} />
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Button onClick={processQueue} disabled={processing || pending === 0}><Send size={16} /> {processing ? 'Processando...' : `Processar agora (até ${automation.batch_size})`}</Button>
+          <p className="text-xs text-muted-foreground">A execução manual ignora somente o toggle de automação; todas as regras de lock, retry, token e published_url continuam valendo.</p>
+        </div>
+
+        <div className="mt-5 overflow-x-auto border border-border">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="bg-background text-xs uppercase text-muted-foreground">
+              <tr>{['Início', 'Status', 'Claim', 'Enviados', 'Retries', 'Falhas', 'Stale recuperados', 'Erro'].map((label) => <th key={label} className="px-3 py-2 font-medium">{label}</th>)}</tr>
+            </thead>
+            <tbody>
+              {workerRuns.map((run) => (
+                <tr key={run.id} className="border-t border-border/70">
+                  <td className="whitespace-nowrap px-3 py-2">{formatDate(run.started_at)}</td>
+                  <td className="px-3 py-2">{statusBadge(run.status)}</td>
+                  <td className="px-3 py-2">{run.claimed_count}</td>
+                  <td className="px-3 py-2">{run.sent_count}</td>
+                  <td className="px-3 py-2">{run.retry_count}</td>
+                  <td className="px-3 py-2">{run.failed_count}</td>
+                  <td className="px-3 py-2">{run.stale_recovered_count}</td>
+                  <td className="max-w-[260px] truncate px-3 py-2 text-xs text-destructive" title={run.error ?? ''}>{run.error ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!workerRuns.length && <p className="p-6 text-center text-sm text-muted-foreground">O worker ainda não registrou nenhuma execução.</p>}
+        </div>
+      </section>
+
+      <section className="border border-border bg-card">
+        <div className="border-b border-border p-4">
+          <h2 className="font-semibold">Canais</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Use @username para canal público ou o chat_id numérico.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1080px] text-left text-sm">
@@ -352,24 +469,13 @@ function TelegramPage() {
                   <td className="px-4 py-3 font-medium">{channel.name}</td>
                   <td className="px-4 py-3 font-mono text-xs">{channel.chat_id}</td>
                   <td className="px-4 py-3">{channel.min_score}/100</td>
-                  <td className="max-w-[260px] px-4 py-3 text-xs text-muted-foreground">
-                    {channel.allowed_categories.length ? channel.allowed_categories.join(', ') : 'Todas'}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    <span className={channel.require_affiliate ? 'font-medium text-success' : 'text-muted-foreground'}>{channel.require_affiliate ? 'Obrigatório' : 'Opcional'}</span>
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    <p>{channel.repost_cooldown_minutes} min</p>
-                    <p className="text-muted-foreground">ou queda ≥ {Number(channel.repost_min_drop_percent).toLocaleString('pt-BR')}%</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={channel.active ? 'text-success' : 'text-muted-foreground'}>{channel.active ? 'Ativo' : 'Inativo'}</span>
-                  </td>
+                  <td className="max-w-[260px] px-4 py-3 text-xs text-muted-foreground">{channel.allowed_categories.length ? channel.allowed_categories.join(', ') : 'Todas'}</td>
+                  <td className="px-4 py-3 text-xs"><span className={channel.require_affiliate ? 'font-medium text-success' : 'text-muted-foreground'}>{channel.require_affiliate ? 'Obrigatório' : 'Opcional'}</span></td>
+                  <td className="px-4 py-3 text-xs"><p>{channel.repost_cooldown_minutes} min</p><p className="text-muted-foreground">ou queda ≥ {Number(channel.repost_min_drop_percent).toLocaleString('pt-BR')}%</p></td>
+                  <td className="px-4 py-3"><span className={channel.active ? 'text-success' : 'text-muted-foreground'}>{channel.active ? 'Ativo' : 'Inativo'}</span></td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => testChannel(channel)} disabled={testingId === channel.id}>
-                        <Play size={15} /> {testingId === channel.id ? 'Testando...' : 'Testar'}
-                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => testChannel(channel)} disabled={testingId === channel.id}><Play size={15} /> {testingId === channel.id ? 'Testando...' : 'Testar'}</Button>
                       <Button size="icon" variant="ghost" title="Editar canal" onClick={() => open(channel)}><Pencil size={16} /></Button>
                       <Button size="icon" variant="ghost" title="Excluir canal" onClick={() => removeChannel(channel)}><Trash2 size={16} /></Button>
                     </div>
@@ -386,11 +492,7 @@ function TelegramPage() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-[280px] flex-1 text-sm font-medium">
             Enfileirar oferta manualmente
-            <select
-              value={offerId}
-              onChange={(event) => setOfferId(event.target.value)}
-              className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
+            <select value={offerId} onChange={(event) => setOfferId(event.target.value)} className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
               <option value="">Escolha uma oferta...</option>
               {admin.offers.filter((offer) => offer.active).map((offer) => {
                 const product = admin.products.find((item) => item.id === offer.product_id)
@@ -401,7 +503,6 @@ function TelegramPage() {
             </select>
           </label>
           <Button variant="outline" onClick={queueOffer}><Plus size={16} /> Enfileirar se elegível</Button>
-          <Button onClick={processQueue} disabled={processing || pending === 0}><Send size={16} /> {processing ? 'Processando...' : 'Enviar fila (até 10)'}</Button>
         </div>
       </section>
 
@@ -421,7 +522,7 @@ function TelegramPage() {
         </div>
 
         <div className="overflow-x-auto border border-border bg-card">
-          <table className="w-full min-w-[1200px] text-left text-sm">
+          <table className="w-full min-w-[1250px] text-left text-sm">
             <thead className="border-b border-border bg-background text-xs uppercase text-muted-foreground">
               <tr>{['Quando', 'Produto', 'Canal', 'Preço', 'Link usado', 'Score', 'Status', 'Tentativas', 'Erro', 'Ações'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}</tr>
             </thead>
@@ -431,29 +532,16 @@ function TelegramPage() {
                 return (
                   <tr key={post.id} className="border-b border-border/70 last:border-0 align-top">
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(post.sent_at ?? post.created_at)}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{productName(post.product_offer_id)}</p>
-                      <p className="text-xs text-muted-foreground">{String(payload['store_name'] ?? '')}</p>
-                    </td>
+                    <td className="px-4 py-3"><p className="font-medium">{productName(post.product_offer_id)}</p><p className="text-xs text-muted-foreground">{String(payload['store_name'] ?? '')}</p></td>
                     <td className="px-4 py-3">{channelName(post.channel_id)}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold">{money(post.effective_price ?? post.price)}</p>
-                      {payload['coupon_code'] ? <p className="text-xs text-success">cupom {String(payload['coupon_code'])}</p> : null}
-                    </td>
-                    <td className="max-w-[260px] px-4 py-3">
-                      <p className={post.used_affiliate ? 'font-medium text-success' : 'text-muted-foreground'}>{post.used_affiliate ? 'Afiliado' : 'URL normal'}</p>
-                      {post.published_url && <a href={post.published_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-primary" title={post.published_url}>{post.published_url}</a>}
-                    </td>
+                    <td className="px-4 py-3"><p className="font-semibold">{money(post.effective_price ?? post.price)}</p>{payload['coupon_code'] ? <p className="text-xs text-success">cupom {String(payload['coupon_code'])}</p> : null}</td>
+                    <td className="max-w-[260px] px-4 py-3"><p className={post.used_affiliate ? 'font-medium text-success' : 'text-muted-foreground'}>{post.used_affiliate ? 'Afiliado' : 'URL normal'}</p>{post.published_url && <a href={post.published_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-primary" title={post.published_url}>{post.published_url}</a>}</td>
                     <td className="px-4 py-3 font-semibold text-primary">{post.score ?? '—'}</td>
                     <td className="px-4 py-3">{statusBadge(post.status)}</td>
                     <td className="px-4 py-3">{post.attempts}</td>
-                    <td className="max-w-[280px] px-4 py-3 text-xs text-destructive">{post.error ?? '—'}</td>
+                    <td className="max-w-[280px] px-4 py-3 text-xs text-destructive">{post.automation_error ?? post.error ?? '—'}</td>
                     <td className="px-4 py-3">
-                      {post.status !== 'sent' && (
-                        <Button size="sm" variant="ghost" disabled={sendingPost === post.id} onClick={() => sendPost(post)}>
-                          <Send size={15} /> {sendingPost === post.id ? 'Enviando...' : 'Enviar agora'}
-                        </Button>
-                      )}
+                      {post.status === 'pending' && <Button size="sm" variant="ghost" disabled={sendingPost === post.id} onClick={() => sendPost(post)}><Send size={15} /> {sendingPost === post.id ? 'Enviando...' : 'Enviar agora'}</Button>}
                       {post.status === 'sent' && <span className="text-xs text-muted-foreground">msg #{post.telegram_message_id ?? '—'}</span>}
                     </td>
                   </tr>
@@ -470,67 +558,41 @@ function TelegramPage() {
           <DialogHeader><DialogTitle>{editing ? 'Editar canal' : 'Adicionar canal'}</DialogTitle></DialogHeader>
           <form onSubmit={saveChannel} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium">
-                Nome
-                <Input className="mt-1.5" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Jhow Ofertas - Informática" required />
-              </label>
-              <label className="block text-sm font-medium">
-                Chat ID ou @username
-                <Input className="mt-1.5 font-mono" value={form.chat_id} onChange={(event) => setForm({ ...form, chat_id: event.target.value })} placeholder="@jhowofertas" required />
-              </label>
+              <label className="block text-sm font-medium">Nome<Input className="mt-1.5" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Jhow Ofertas - Informática" required /></label>
+              <label className="block text-sm font-medium">Chat ID ou @username<Input className="mt-1.5 font-mono" value={form.chat_id} onChange={(event) => setForm({ ...form, chat_id: event.target.value })} placeholder="@jhowofertas" required /></label>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              <label className="block text-sm font-medium">
-                Score mínimo
-                <Input className="mt-1.5" type="number" min="0" max="100" value={form.min_score} onChange={(event) => setForm({ ...form, min_score: event.target.value })} />
-              </label>
-              <label className="block text-sm font-medium">
-                Cooldown de repost
-                <Input className="mt-1.5" type="number" min="1" value={form.repost_cooldown_minutes} onChange={(event) => setForm({ ...form, repost_cooldown_minutes: event.target.value })} />
-                <span className="mt-1 block text-xs font-normal text-muted-foreground">minutos</span>
-              </label>
-              <label className="block text-sm font-medium">
-                Queda mínima para repost
-                <Input className="mt-1.5" type="number" min="0" max="100" step="0.1" value={form.repost_min_drop_percent} onChange={(event) => setForm({ ...form, repost_min_drop_percent: event.target.value })} />
-                <span className="mt-1 block text-xs font-normal text-muted-foreground">%</span>
-              </label>
+              <label className="block text-sm font-medium">Score mínimo<Input className="mt-1.5" type="number" min="0" max="100" value={form.min_score} onChange={(event) => setForm({ ...form, min_score: event.target.value })} /></label>
+              <label className="block text-sm font-medium">Cooldown de repost<Input className="mt-1.5" type="number" min="1" value={form.repost_cooldown_minutes} onChange={(event) => setForm({ ...form, repost_cooldown_minutes: event.target.value })} /><span className="mt-1 block text-xs font-normal text-muted-foreground">minutos</span></label>
+              <label className="block text-sm font-medium">Queda mínima para repost<Input className="mt-1.5" type="number" min="0" max="100" step="0.1" value={form.repost_min_drop_percent} onChange={(event) => setForm({ ...form, repost_min_drop_percent: event.target.value })} /><span className="mt-1 block text-xs font-normal text-muted-foreground">%</span></label>
             </div>
-            <label className="block text-sm font-medium">
-              Categorias permitidas
-              <Input className="mt-1.5" value={form.allowed_categories} onChange={(event) => setForm({ ...form, allowed_categories: event.target.value })} placeholder="Informática, Hardware, Periféricos" />
-              <span className="mt-1 block text-xs font-normal text-muted-foreground">Separe por vírgula. Vazio = todas as categorias.</span>
-            </label>
-            <label className="block text-sm font-medium">
-              Template personalizado
-              <Textarea className="mt-1.5 min-h-40 font-mono text-xs" value={form.message_template} onChange={(event) => setForm({ ...form, message_template: event.target.value })} placeholder="Vazio usa o template padrão do Jhow Ofertas." />
-              <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                Tokens: {'{{produto}}'}, {'{{loja}}'}, {'{{preco}}'}, {'{{preco_final}}'}, {'{{cupom}}'}, {'{{frete}}'}, {'{{score}}'}, {'{{abaixo_media}}'}, {'{{classificacao}}'}.
-              </span>
-            </label>
+            <label className="block text-sm font-medium">Categorias permitidas<Input className="mt-1.5" value={form.allowed_categories} onChange={(event) => setForm({ ...form, allowed_categories: event.target.value })} placeholder="Informática, Hardware, Periféricos" /><span className="mt-1 block text-xs font-normal text-muted-foreground">Separe por vírgula. Vazio = todas as categorias.</span></label>
+            <label className="block text-sm font-medium">Template personalizado<Textarea className="mt-1.5 min-h-40 font-mono text-xs" value={form.message_template} onChange={(event) => setForm({ ...form, message_template: event.target.value })} placeholder="Vazio usa o template padrão do Jhow Ofertas." /><span className="mt-1 block text-xs font-normal text-muted-foreground">Tokens: {'{{produto}}'}, {'{{loja}}'}, {'{{preco}}'}, {'{{preco_final}}'}, {'{{cupom}}'}, {'{{frete}}'}, {'{{score}}'}, {'{{abaixo_media}}'}, {'{{classificacao}}'}.</span></label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex items-center justify-between border border-border bg-background p-4">
-                <div>
-                  <p className="text-sm font-medium">Exigir afiliado</p>
-                  <p className="text-xs text-muted-foreground">O canal não recebe ofertas sem link afiliado elegível.</p>
-                </div>
-                <Switch checked={form.require_affiliate} onCheckedChange={(value) => setForm({ ...form, require_affiliate: value })} />
-              </div>
-              <div className="flex items-center justify-between border border-border bg-background p-4">
-                <div>
-                  <p className="text-sm font-medium">Canal ativo</p>
-                  <p className="text-xs text-muted-foreground">Somente canais ativos recebem novas ofertas.</p>
-                </div>
-                <Switch checked={form.active} onCheckedChange={(value) => setForm({ ...form, active: value })} />
-              </div>
+              <ToggleCard title="Exigir afiliado" description="O canal não recebe ofertas sem link afiliado elegível." checked={form.require_affiliate} onChange={(value) => setForm({ ...form, require_affiliate: value })} />
+              <ToggleCard title="Canal ativo" description="Somente canais ativos recebem novas ofertas." checked={form.active} onChange={(value) => setForm({ ...form, active: value })} />
             </div>
             {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditing(undefined)}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar canal'}</Button>
-            </DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditing(undefined)}>Cancelar</Button><Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar canal'}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     </div>
   )
+}
+
+function Metric({ label, value, detail, icon }: { label: string; value: string | number; detail?: string; icon: React.ReactNode }) {
+  return <div className="border border-border bg-card p-5"><div className="flex items-center justify-between text-sm text-muted-foreground">{label}{icon}</div><p className="mt-4 text-2xl font-semibold">{value}</p>{detail && <p className="mt-1 truncate text-xs text-muted-foreground" title={detail}>{detail}</p>}</div>
+}
+
+function InfoCard({ title, value, detail }: { title: string; value: string; detail: string }) {
+  return <div className="border border-border bg-background p-4"><p className="text-xs text-muted-foreground">{title}</p><p className="mt-2 text-lg font-semibold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>
+}
+
+function ToggleCard({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return <div className="flex items-center justify-between gap-4 border border-border bg-background p-4"><div><p className="text-sm font-medium">{title}</p><p className="text-xs text-muted-foreground">{description}</p></div><Switch checked={checked} onCheckedChange={onChange} /></div>
+}
+
+function NumberField({ label, value, min, max, suffix, onChange }: { label: string; value: number; min: number; max: number; suffix?: string; onChange: (value: number) => void }) {
+  return <label className="block text-sm font-medium">{label}<div className="mt-1.5 flex items-center gap-2"><Input type="number" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} />{suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}</div></label>
 }
