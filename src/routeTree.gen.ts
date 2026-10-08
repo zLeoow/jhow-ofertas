@@ -119,7 +119,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/afiliados': typeof AuthenticatedAfiliadosRoute
-  '/afiliados': typeof AuthenticatedAfiliadosRoute
   '/coletores': typeof AuthenticatedColetoresRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/cupons': typeof AuthenticatedCuponsRoute
@@ -137,6 +136,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
+  '/afiliados': typeof AuthenticatedAfiliadosRoute
   '/coletores': typeof AuthenticatedColetoresRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/cupons': typeof AuthenticatedCuponsRoute
@@ -177,7 +177,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/sem-acesso'
     | '/afiliados'
-    | '/afiliados'
     | '/coletores'
     | '/configuracoes'
     | '/cupons'
@@ -195,6 +194,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/sem-acesso'
+    | '/afiliados'
     | '/coletores'
     | '/configuracoes'
     | '/cupons'
