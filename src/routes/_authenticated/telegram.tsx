@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, CheckCircle2, Clock3, Pencil, Play, Plus, RefreshCw, Search, Send, Trash2, XCircle } from 'lucide-react'
@@ -50,6 +50,10 @@ export const Route = createFileRoute('/_authenticated/telegram')({
     meta: [
       { title: 'Telegram — Jhow Ofertas' },
       { name: 'description', content: 'Canais, fila e automação do Telegram.' },
+      { property: 'og:title', content: 'Telegram — Jhow Ofertas' },
+      { property: 'og:description', content: 'Canais, fila e automação do Telegram.' },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: TelegramPage,
@@ -122,7 +126,7 @@ function TelegramPage() {
   }
   const channelName = (id: string | null) => id ? channels.find((channel) => channel.id === id)?.name ?? 'Canal removido' : '—'
 
-  const postRows = useMemo(() => {
+  const postRows = (() => {
     const term = search.trim().toLowerCase()
     return posts.filter((post) => {
       const payload = payloadRecord(post)
@@ -135,7 +139,7 @@ function TelegramPage() {
       ].filter(Boolean).join(' ').toLowerCase()
       return (statusFilter === 'all' || post.status === statusFilter) && (!term || text.includes(term))
     })
-  }, [posts, channels, admin, search, statusFilter])
+  })()
 
   const pending = posts.filter((post) => post.status === 'pending').length
   const sent = posts.filter((post) => post.status === 'sent').length
