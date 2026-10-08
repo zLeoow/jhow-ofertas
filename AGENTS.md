@@ -13,3 +13,4 @@
 - Use the generated browser database client with admin-only RLS for management screens; this avoids exposing privileged credentials in the app.
 - Record offer price edits in a database trigger; this keeps history consistent regardless of which editor changes an offer.
 - Display the newest persisted offer score from the shared admin query and recalculate through analyze_offer RPC; this keeps the diagnostic, list, and dashboard aligned with the database engine.
+- Keep affiliate status and explicit template generation in the shared affiliates helper, and send only the queued published_url in Telegram; this aligns management views and preserves the publication decision.
