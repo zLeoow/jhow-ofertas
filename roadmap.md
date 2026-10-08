@@ -7,3 +7,5 @@
 - [x] Stage 5 coupon engine: CRUD, verification, expiry/minimum rules, effective price, score integration, and automatic reanalysis.
 - [x] Stage 6 Telegram publishing core: channels, score/category rules, anti-spam, templates, queue, secure Bot API sender, test/send/retry UI.\n- [x] Affiliate management: store programs, templates, verified links, publication policy, frozen published URL, and Telegram audit.\n- [ ] Stage 6.1 Telegram automation: configure TELEGRAM_BOT_TOKEN and production scheduler/cron for unattended queue processing.
 - [ ] Finalize external collectors (Mercado Livre first), secrets, production deployment, and monitoring.
+
+- [x] Validate canonical affiliate sync e8fb780: schema, tests, and authenticated preview.
