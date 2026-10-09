@@ -62,6 +62,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "collection_jobs_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "collection_jobs_product_offer_id_fkey"
             columns: ["product_offer_id"]
             isOneToOne: false
@@ -765,18 +772,83 @@ export type Database = {
         Args: { p_offer_id: string }
         Returns: number
       }
+      claim_collection_jobs: {
+        Args: { p_limit?: number; p_worker_name: string }
+        Returns: {
+          collector_config: Json
+          collector_kind: string
+          current_price: number
+          in_stock: boolean
+          job_id: number
+          offer_url: string
+          product_name: string
+          product_offer_id: string
+          shipping_price: number
+          store_slug: string
+        }[]
+      }
       claim_telegram_posts: {
         Args: {
-          p_limit?: number | null
-          p_lock_id?: string
           p_force?: boolean
-          p_post_id?: number | null
+          p_limit?: number
+          p_lock_id?: string
+          p_post_id?: number
         }
-        Returns: Database["public"]["Tables"]["telegram_posts"]["Row"][]
+        Returns: {
+          attempts: number
+          automation_error: string | null
+          channel_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          effective_price: number | null
+          error: string | null
+          finished_at: string | null
+          id: number
+          last_attempt_at: string | null
+          lock_id: string | null
+          locked_at: string | null
+          next_attempt_at: string | null
+          payload: Json
+          price: number | null
+          product_offer_id: string | null
+          published_url: string | null
+          score: number | null
+          sent_at: string | null
+          source_score_id: number | null
+          status: string
+          telegram_message_id: string | null
+          used_affiliate: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "telegram_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      complete_collection_job: {
+        Args: {
+          p_in_stock?: boolean
+          p_job_id: number
+          p_original_price?: number
+          p_price: number
+          p_result?: Json
+          p_shipping_price?: number
+        }
+        Returns: undefined
       }
       complete_telegram_post: {
-        Args: { p_post_id: number; p_lock_id: string; p_message_id: string }
+        Args: { p_lock_id: string; p_message_id: string; p_post_id: number }
         Returns: boolean
+      }
+      fail_collection_job: {
+        Args: {
+          p_error: string
+          p_job_id: number
+          p_result?: Json
+          p_retry_delay_minutes?: number
+        }
+        Returns: undefined
       }
       has_role: {
         Args: {
@@ -785,22 +857,32 @@ export type Database = {
         }
         Returns: boolean
       }
+      heartbeat_worker: {
+        Args: { p_metadata?: Json; p_worker_name: string }
+        Returns: string
+      }
+      queue_telegram_offer: { Args: { p_offer_id: string }; Returns: number }
       queue_telegram_offer_admin: {
         Args: { p_offer_id: string }
         Returns: number
       }
       recover_stale_telegram_posts: { Args: never; Returns: Json }
+      requeue_stale_collection_jobs: {
+        Args: { p_after_minutes?: number }
+        Returns: number
+      }
       retry_telegram_post: {
-        Args: { p_post_id: number; p_lock_id: string; p_error: string }
+        Args: { p_error: string; p_lock_id: string; p_post_id: number }
         Returns: string
       }
+      schedule_collection_jobs: { Args: { p_limit?: number }; Returns: number }
       simulate_collection: {
         Args: {
-          p_offer_id: string
-          p_price: number
-          p_original_price?: number | null
-          p_shipping_price?: number | null
           p_in_stock?: boolean
+          p_offer_id: string
+          p_original_price?: number
+          p_price: number
+          p_shipping_price?: number
         }
         Returns: number
       }
