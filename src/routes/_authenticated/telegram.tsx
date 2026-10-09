@@ -84,7 +84,7 @@ function parseAutomationSettings(value: Json | null | undefined): AutomationSett
     return Number.isFinite(raw) ? Math.max(min, Math.min(max, Math.trunc(raw))) : fallback
   }
   return {
-    enabled: typeof row.enabled === 'boolean' ? row.enabled : automationDefaults.enabled,
+    enabled: typeof row['enabled'] === 'boolean' ? row['enabled'] : automationDefaults.enabled,
     batch_size: bounded('batch_size', 10, 1, 50),
     max_attempts: bounded('max_attempts', 5, 1, 20),
     retry_delay_minutes: bounded('retry_delay_minutes', 5, 1, 1440),
@@ -418,7 +418,7 @@ function TelegramPage() {
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard title="Agendador preparado" value="5 min" detail="Workflow/cron chama /api/telegram-worker. Cloud Job pode substituir sem mudar o worker." />
+          <InfoCard title="Cloud Job" value="Pendente" detail="Agendamento recorrente ainda não confirmado." />
           <InfoCard title="Token do bot" value={botStatus.data?.configured ? 'Configurado' : 'Não configurado'} detail="O valor nunca é exibido nem salvo no banco." />
           <InfoCard title="Última execução" value={lastRun ? formatDate(lastRun.started_at) : 'Nunca'} detail={lastRun ? lastRun.status : 'Sem execuções registradas'} />
           <InfoCard title="Último resultado" value={lastRun ? `${lastRun.sent_count} enviados` : '—'} detail={lastRun ? `${lastRun.retry_count} retries · ${lastRun.failed_count} falhas` : 'Aguardando worker'} />
