@@ -28,7 +28,7 @@ function settingsFromJson(value: Json | null | undefined): AutomationSettings {
     return Number.isFinite(raw) ? Math.max(min, Math.min(max, Math.trunc(raw))) : fallback
   }
   return {
-    enabled: typeof row.enabled === 'boolean' ? row.enabled : defaults.enabled,
+    enabled: typeof row['enabled'] === 'boolean' ? row['enabled'] : defaults.enabled,
     batch_size: number('batch_size', defaults.batch_size, 1, 50),
     max_attempts: number('max_attempts', defaults.max_attempts, 1, 20),
     retry_delay_minutes: number('retry_delay_minutes', defaults.retry_delay_minutes, 1, 1440),
@@ -161,8 +161,7 @@ export async function getTelegramBotIdentity() {
 export async function sendTelegramTestMessage(chatId: string) {
   const result = await telegramApi<{ message_id: number }>('sendMessage', {
     chat_id: chatId,
-    text: '✅ <b>Jhow Ofertas conectado!</b>\n\nO bot já consegue publicar neste canal.',
-    parse_mode: 'HTML',
+    text: '✅ Jhow Ofertas conectado!\n\nO bot já consegue publicar automaticamente neste canal.',
   })
   return String(result.message_id)
 }
@@ -301,7 +300,7 @@ export async function runTelegramAutomation(options?: {
     p_limit: options?.limit ?? settings.batch_size,
     p_lock_id: lockId,
     p_force: force,
-    p_post_id: options?.postId ?? null,
+    ...(options?.postId === undefined ? {} : { p_post_id: options.postId }),
   })
   if (claimed.error) {
     await finishRun({ status: 'error', error: claimed.error.message.slice(0, 2000), stale_recovered_count: staleRecovered })
