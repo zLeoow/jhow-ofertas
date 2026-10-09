@@ -20,7 +20,7 @@ export const Route = createFileRoute('/api/telegram-worker')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env['LOVABLE_CRON_SECRET']?.trim()
+        const secret = process.env['TELEGRAM_CRON_SECRET']?.trim() || process.env['LOVABLE_CRON_SECRET']?.trim()
         if (!secret) {
           return Response.json({ ok: false, error: 'cron_secret_missing' }, { status: 503 })
         }
