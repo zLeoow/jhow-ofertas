@@ -14,3 +14,6 @@
 - Record offer price edits in a database trigger; this keeps history consistent regardless of which editor changes an offer.
 - Display the newest persisted offer score from the shared admin query and recalculate through analyze_offer RPC; this keeps the diagnostic, list, and dashboard aligned with the database engine.
 - Keep affiliate status and explicit template generation in the shared affiliates helper, and send only the queued published_url in Telegram; this aligns management views and preserves the publication decision.
+
+- Share Telegram delivery through the server-only worker with database claim locks and frozen published URLs; this keeps manual and scheduled sends consistent.
+- Keep Telegram scheduling in Lovable Cloud, not GitHub Actions, and enable automation only after a scheduler is confirmed active; this avoids unowned duplicate schedules.
