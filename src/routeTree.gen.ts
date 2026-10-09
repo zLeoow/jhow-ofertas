@@ -25,6 +25,7 @@ import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedTelegramRouteImport } from './routes/_authenticated/telegram'
 import { Route as AuthenticatedWorkersRouteImport } from './routes/_authenticated/workers'
+import { Route as ApiTelegramWorkerRouteImport } from './routes/api/telegram-worker'
 import { Route as AuthenticatedOfertasOfferIdRouteImport } from './routes/_authenticated/ofertas.$offerId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -107,6 +108,11 @@ const AuthenticatedWorkersRoute = AuthenticatedWorkersRouteImport.update({
   path: '/workers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiTelegramWorkerRoute = ApiTelegramWorkerRouteImport.update({
+  id: '/api/telegram-worker',
+  path: '/api/telegram-worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedOfertasOfferIdRoute =
   AuthenticatedOfertasOfferIdRouteImport.update({
     id: '/$offerId',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/produtos': typeof AuthenticatedProdutosRoute
   '/telegram': typeof AuthenticatedTelegramRoute
   '/workers': typeof AuthenticatedWorkersRoute
+  '/api/telegram-worker': typeof ApiTelegramWorkerRoute
   '/ofertas/$offerId': typeof AuthenticatedOfertasOfferIdRoute
 }
 export interface FileRoutesByTo {
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/produtos': typeof AuthenticatedProdutosRoute
   '/telegram': typeof AuthenticatedTelegramRoute
   '/workers': typeof AuthenticatedWorkersRoute
+  '/api/telegram-worker': typeof ApiTelegramWorkerRoute
   '/ofertas/$offerId': typeof AuthenticatedOfertasOfferIdRoute
 }
 export interface FileRoutesById {
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/telegram': typeof AuthenticatedTelegramRoute
   '/_authenticated/workers': typeof AuthenticatedWorkersRoute
+  '/api/telegram-worker': typeof ApiTelegramWorkerRoute
   '/_authenticated/ofertas/$offerId': typeof AuthenticatedOfertasOfferIdRoute
 }
 export interface FileRouteTypes {
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/telegram'
     | '/workers'
+    | '/api/telegram-worker'
     | '/ofertas/$offerId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/telegram'
     | '/workers'
+    | '/api/telegram-worker'
     | '/ofertas/$offerId'
   id:
     | '__root__'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/_authenticated/produtos'
     | '/_authenticated/telegram'
     | '/_authenticated/workers'
+    | '/api/telegram-worker'
     | '/_authenticated/ofertas/$offerId'
   fileRoutesById: FileRoutesById
 }
@@ -233,6 +245,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   SemAcessoRoute: typeof SemAcessoRoute
+  ApiTelegramWorkerRoute: typeof ApiTelegramWorkerRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/telegram-worker': {
+      id: '/api/telegram-worker'
+      path: '/api/telegram-worker'
+      fullPath: '/api/telegram-worker'
+      preLoaderRoute: typeof ApiTelegramWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/ofertas/$offerId': {
       id: '/_authenticated/ofertas/$offerId'
       path: '/$offerId'
@@ -408,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   SemAcessoRoute: SemAcessoRoute,
+  ApiTelegramWorkerRoute: ApiTelegramWorkerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
