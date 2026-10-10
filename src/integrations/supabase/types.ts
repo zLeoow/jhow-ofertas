@@ -876,6 +876,8 @@ export type Database = {
         Returns: string
       }
       schedule_collection_jobs: { Args: { p_limit?: number }; Returns: number }
+      set_telegram_cron_secret: { Args: { p_secret: string }; Returns: undefined }
+      verify_telegram_cron_secret: { Args: { p_secret: string }; Returns: boolean }
       simulate_collection: {
         Args: {
           p_in_stock?: boolean
