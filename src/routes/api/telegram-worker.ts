@@ -1,40 +1,32 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-async function digest(value: string) {
-  const bytes = new TextEncoder().encode(value)
-  const hash = await crypto.subtle.digest('SHA-256', bytes)
-  return new Uint8Array(hash)
-}
-
-async function secureEquals(a: string, b: string) {
-  const [left, right] = await Promise.all([digest(a), digest(b)])
-  if (left.length !== right.length) return false
-  let diff = 0
-  for (let index = 0; index < left.length; index += 1) {
-    diff |= (left[index] ?? 0) ^ (right[index] ?? 0)
-  }
-  return diff === 0
-}
-
 export const Route = createFileRoute('/api/telegram-worker')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env['TELEGRAM_CRON_SECRET']?.trim() || process.env['LOVABLE_CRON_SECRET']?.trim()
-        if (!secret) {
-          return Response.json({ ok: false, error: 'cron_secret_missing' }, { status: 503 })
-        }
-
         const headerSecret =
           request.headers.get('x-cron-secret')?.trim() ||
           request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ||
           ''
 
-        if (!headerSecret || !(await secureEquals(headerSecret, secret))) {
+        if (!headerSecret) {
           return Response.json({ ok: false, error: 'unauthorized' }, { status: 401 })
         }
 
         try {
+          const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+          const verified = await supabaseAdmin.rpc('verify_telegram_cron_secret', {
+            p_secret: headerSecret,
+          })
+
+          if (verified.error) {
+            return Response.json({ ok: false, error: 'scheduler_auth_unavailable' }, { status: 503 })
+          }
+
+          if (!verified.data) {
+            return Response.json({ ok: false, error: 'unauthorized' }, { status: 401 })
+          }
+
           const { runTelegramAutomation } = await import('@/components/jhow/telegram.worker.server')
           const result = await runTelegramAutomation({ source: 'cron', force: false })
           return Response.json({ ok: true, ...result })
