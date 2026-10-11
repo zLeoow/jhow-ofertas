@@ -1,7 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/integrations/supabase/types'
 
-type AdminContext = { userId: string; supabase: { rpc: (name: 'has_role', args: { _user_id: string; _role: 'admin' }) => Promise<{ data: boolean | null; error: unknown }> } }
+type AdminContext = { userId: string; supabase: SupabaseClient<Database> }
 async function admin(context: AdminContext) {
   const role = await context.supabase.rpc('has_role', { _user_id: context.userId, _role: 'admin' })
   if (role.error || !role.data) throw new Error('Acesso negado')
