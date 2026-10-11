@@ -51,7 +51,7 @@ export async function consumeState(raw: string) {
   const role = await supabaseAdmin.rpc('has_role', { _user_id: data.created_by, _role: 'admin' })
   if (role.error || !role.data) throw new MercadoLivreError('invalid_state')
 }
-export type TokenResult = { access_token: string; refresh_token: string; expires_in: number; user_id: number; token_type?: string; scope?: string }
+export type TokenResult = { access_token: string; refresh_token: string; expires_in: number; user_id: number; token_type?: string | undefined; scope?: string | undefined }
 export type MercadoLivreUser = { id: number; nickname: string | null; site_id: string | null }
 async function tokenRequest(params: Record<string, string>): Promise<TokenResult> {
   const { clientId, clientSecret } = credentials()
