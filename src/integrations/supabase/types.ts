@@ -186,6 +186,111 @@ export type Database = {
           },
         ]
       }
+      internal_scheduler_auth: {
+        Row: {
+          key: string
+          secret_hash: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          secret_hash: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          secret_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mercadolivre_connections: {
+        Row: {
+          access_token: string
+          connected_at: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_error: string | null
+          last_refresh_at: string | null
+          last_verified_at: string | null
+          ml_user_id: number
+          nickname: string | null
+          refresh_lock_id: string | null
+          refresh_locked_until: string | null
+          refresh_token: string
+          scope: string | null
+          site_id: string | null
+          token_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_error?: string | null
+          last_refresh_at?: string | null
+          last_verified_at?: string | null
+          ml_user_id: number
+          nickname?: string | null
+          refresh_lock_id?: string | null
+          refresh_locked_until?: string | null
+          refresh_token: string
+          scope?: string | null
+          site_id?: string | null
+          token_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_error?: string | null
+          last_refresh_at?: string | null
+          last_verified_at?: string | null
+          ml_user_id?: number
+          nickname?: string | null
+          refresh_lock_id?: string | null
+          refresh_locked_until?: string | null
+          refresh_token?: string
+          scope?: string | null
+          site_id?: string | null
+          token_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mercadolivre_oauth_states: {
+        Row: {
+          consumed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          expires_at: string
+          return_to: string | null
+          state_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          expires_at: string
+          return_to?: string | null
+          state_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string
+          return_to?: string | null
+          state_hash?: string
+        }
+        Relationships: []
+      }
       offer_scores: {
         Row: {
           avg_30d: number | null
@@ -876,8 +981,10 @@ export type Database = {
         Returns: string
       }
       schedule_collection_jobs: { Args: { p_limit?: number }; Returns: number }
-      set_telegram_cron_secret: { Args: { p_secret: string }; Returns: undefined }
-      verify_telegram_cron_secret: { Args: { p_secret: string }; Returns: boolean }
+      set_telegram_cron_secret: {
+        Args: { p_secret: string }
+        Returns: undefined
+      }
       simulate_collection: {
         Args: {
           p_in_stock?: boolean
@@ -887,6 +994,10 @@ export type Database = {
           p_shipping_price?: number
         }
         Returns: number
+      }
+      verify_telegram_cron_secret: {
+        Args: { p_secret: string }
+        Returns: boolean
       }
     }
     Enums: {
