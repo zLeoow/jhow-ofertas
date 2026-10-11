@@ -1,4 +1,3 @@
-import { config } from '../config.js'
 import type { CollectorAdapter, CollectionJob } from '../types.js'
 
 function itemId(job: CollectionJob) {
@@ -14,26 +13,10 @@ function itemId(job: CollectionJob) {
   return `${match[1].toUpperCase()}${match[2]}`
 }
 
-async function api<T>(path: string): Promise<T> {
-  if (!config.mercadoLivreAccessToken) {
-    throw new Error('MERCADOLIVRE_ACCESS_TOKEN nao configurado')
-  }
-
-  const response = await fetch(`https://api.mercadolibre.com${path}`, {
-    headers: {
-      Authorization: `Bearer ${config.mercadoLivreAccessToken}`,
-      Accept: 'application/json',
-      'User-Agent': 'JhowOfertas/0.1',
-    },
-    signal: AbortSignal.timeout(15000),
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Mercado Livre HTTP ${response.status}: ${text.slice(0, 300)}`)
-  }
-
-  return response.json() as Promise<T>
+async function api<T>(_path: string): Promise<T> {
+  // OAuth tokens belong to the app backend; the next collector stage must execute
+  // this adapter there using getValidAccessToken(), never export a fixed token.
+  throw new Error('Mercado Livre: coleta externa suspensa; use a conexão OAuth no backend na próxima etapa')
 }
 
 type SalePrice = {
