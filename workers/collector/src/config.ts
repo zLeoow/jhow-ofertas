@@ -17,5 +17,4 @@ export const config = {
   workerName: process.env.WORKER_NAME?.trim() || `collector-${process.pid}`,
   batchSize: integer('BATCH_SIZE', 10, 1, 100),
   concurrency: integer('WORKER_CONCURRENCY', 4, 1, 20),
-  mercadoLivreAccessToken: process.env.MERCADOLIVRE_ACCESS_TOKEN?.trim() || '',
 }
