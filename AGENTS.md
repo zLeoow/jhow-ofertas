@@ -16,4 +16,6 @@
 - Keep affiliate status and explicit template generation in the shared affiliates helper, and send only the queued published_url in Telegram; this aligns management views and preserves the publication decision.
 
 - Share Telegram delivery through the server-only worker with database claim locks and frozen published URLs; this keeps manual and scheduled sends consistent.
-- Keep Telegram scheduling in Lovable Cloud, not GitHub Actions, and enable automation only after a scheduler is confirmed active; this avoids unowned duplicate schedules.
+- Preserve the canonical GitHub Telegram workflow as source infrastructure without activating it during synchronization; enable automation only after an explicitly chosen scheduler is confirmed active to avoid duplicate schedules.
+- Authenticate Telegram scheduler callbacks through the service-role-only database verifier; this avoids runtime environment drift while keeping raw credentials out of the database.
+- Keep Mercado Livre OAuth in server-only helpers and service-role-only tables; conditional state consumption and database refresh leases prevent state replay and concurrent rotating-token refreshes. Persist the rotated pair before identity validation so an identity outage cannot lose it.
