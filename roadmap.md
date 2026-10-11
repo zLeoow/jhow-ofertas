@@ -12,3 +12,4 @@
 - [ ] Finalize external collectors (Mercado Livre first), secrets, production deployment, and monitoring.
 
 - [x] Validate canonical affiliate sync e8fb780: schema, tests, and authenticated preview.
+- Published app URL: https://jhow-ofertas.lovable.app
