@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
-      JHOW_APP_URL: ${{ vars.JHOW_APP_URL || 'https://id-preview--1745b045-0f99-40ce-9ae6-fe7c5cc0ef9a.lovable.app' }}
+      JHOW_APP_URL: ${{ vars.JHOW_APP_URL || 'https://jhow-ofertas.lovable.app' }}
       CRON_SECRET: ${{ secrets.TELEGRAM_CRON_SECRET }}
     steps:
       - name: Skip until cron secret is configured
