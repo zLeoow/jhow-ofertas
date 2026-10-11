@@ -18,6 +18,7 @@ import { Route as AuthenticatedColetoresRouteImport } from './routes/_authentica
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedCuponsRouteImport } from './routes/_authenticated/cupons'
 import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authenticated/historico'
+import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenticated/integracoes'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedLojasRouteImport } from './routes/_authenticated/lojas'
 import { Route as AuthenticatedOfertasRouteImport } from './routes/_authenticated/ofertas'
@@ -27,6 +28,7 @@ import { Route as AuthenticatedTelegramRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedWorkersRouteImport } from './routes/_authenticated/workers'
 import { Route as ApiTelegramWorkerRouteImport } from './routes/api/telegram-worker'
 import { Route as AuthenticatedOfertasOfferIdRouteImport } from './routes/_authenticated/ofertas.$offerId'
+import { Route as ApiMercadolivreCallbackRouteImport } from './routes/api/mercadolivre/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +75,12 @@ const AuthenticatedHistoricoRoute = AuthenticatedHistoricoRouteImport.update({
   path: '/historico',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIntegracoesRoute =
+  AuthenticatedIntegracoesRouteImport.update({
+    id: '/integracoes',
+    path: '/integracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLogsRoute = AuthenticatedLogsRouteImport.update({
   id: '/logs',
   path: '/logs',
@@ -119,6 +127,11 @@ const AuthenticatedOfertasOfferIdRoute =
     path: '/$offerId',
     getParentRoute: () => AuthenticatedOfertasRoute,
   } as any)
+const ApiMercadolivreCallbackRoute = ApiMercadolivreCallbackRouteImport.update({
+  id: '/api/mercadolivre/callback',
+  path: '/api/mercadolivre/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -129,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/cupons': typeof AuthenticatedCuponsRoute
   '/historico': typeof AuthenticatedHistoricoRoute
+  '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/lojas': typeof AuthenticatedLojasRoute
   '/ofertas': typeof AuthenticatedOfertasRouteWithChildren
@@ -138,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/workers': typeof AuthenticatedWorkersRoute
   '/api/telegram-worker': typeof ApiTelegramWorkerRoute
   '/ofertas/$offerId': typeof AuthenticatedOfertasOfferIdRoute
+  '/api/mercadolivre/callback': typeof ApiMercadolivreCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -148,6 +163,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/cupons': typeof AuthenticatedCuponsRoute
   '/historico': typeof AuthenticatedHistoricoRoute
+  '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/lojas': typeof AuthenticatedLojasRoute
   '/ofertas': typeof AuthenticatedOfertasRouteWithChildren
@@ -157,6 +173,7 @@ export interface FileRoutesByTo {
   '/workers': typeof AuthenticatedWorkersRoute
   '/api/telegram-worker': typeof ApiTelegramWorkerRoute
   '/ofertas/$offerId': typeof AuthenticatedOfertasOfferIdRoute
+  '/api/mercadolivre/callback': typeof ApiMercadolivreCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -169,6 +186,7 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/cupons': typeof AuthenticatedCuponsRoute
   '/_authenticated/historico': typeof AuthenticatedHistoricoRoute
+  '/_authenticated/integracoes': typeof AuthenticatedIntegracoesRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
   '/_authenticated/lojas': typeof AuthenticatedLojasRoute
   '/_authenticated/ofertas': typeof AuthenticatedOfertasRouteWithChildren
@@ -178,6 +196,7 @@ export interface FileRoutesById {
   '/_authenticated/workers': typeof AuthenticatedWorkersRoute
   '/api/telegram-worker': typeof ApiTelegramWorkerRoute
   '/_authenticated/ofertas/$offerId': typeof AuthenticatedOfertasOfferIdRoute
+  '/api/mercadolivre/callback': typeof ApiMercadolivreCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -190,6 +209,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/cupons'
     | '/historico'
+    | '/integracoes'
     | '/logs'
     | '/lojas'
     | '/ofertas'
@@ -199,6 +219,7 @@ export interface FileRouteTypes {
     | '/workers'
     | '/api/telegram-worker'
     | '/ofertas/$offerId'
+    | '/api/mercadolivre/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -209,6 +230,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/cupons'
     | '/historico'
+    | '/integracoes'
     | '/logs'
     | '/lojas'
     | '/ofertas'
@@ -218,6 +240,7 @@ export interface FileRouteTypes {
     | '/workers'
     | '/api/telegram-worker'
     | '/ofertas/$offerId'
+    | '/api/mercadolivre/callback'
   id:
     | '__root__'
     | '/'
@@ -229,6 +252,7 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracoes'
     | '/_authenticated/cupons'
     | '/_authenticated/historico'
+    | '/_authenticated/integracoes'
     | '/_authenticated/logs'
     | '/_authenticated/lojas'
     | '/_authenticated/ofertas'
@@ -238,6 +262,7 @@ export interface FileRouteTypes {
     | '/_authenticated/workers'
     | '/api/telegram-worker'
     | '/_authenticated/ofertas/$offerId'
+    | '/api/mercadolivre/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -246,6 +271,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SemAcessoRoute: typeof SemAcessoRoute
   ApiTelegramWorkerRoute: typeof ApiTelegramWorkerRoute
+  ApiMercadolivreCallbackRoute: typeof ApiMercadolivreCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -313,6 +339,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoricoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/integracoes': {
+      id: '/_authenticated/integracoes'
+      path: '/integracoes'
+      fullPath: '/integracoes'
+      preLoaderRoute: typeof AuthenticatedIntegracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/logs': {
       id: '/_authenticated/logs'
       path: '/logs'
@@ -376,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOfertasOfferIdRouteImport
       parentRoute: typeof AuthenticatedOfertasRoute
     }
+    '/api/mercadolivre/callback': {
+      id: '/api/mercadolivre/callback'
+      path: '/api/mercadolivre/callback'
+      fullPath: '/api/mercadolivre/callback'
+      preLoaderRoute: typeof ApiMercadolivreCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -396,6 +436,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedCuponsRoute: typeof AuthenticatedCuponsRoute
   AuthenticatedHistoricoRoute: typeof AuthenticatedHistoricoRoute
+  AuthenticatedIntegracoesRoute: typeof AuthenticatedIntegracoesRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
   AuthenticatedLojasRoute: typeof AuthenticatedLojasRoute
   AuthenticatedOfertasRoute: typeof AuthenticatedOfertasRouteWithChildren
@@ -411,6 +452,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedCuponsRoute: AuthenticatedCuponsRoute,
   AuthenticatedHistoricoRoute: AuthenticatedHistoricoRoute,
+  AuthenticatedIntegracoesRoute: AuthenticatedIntegracoesRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
   AuthenticatedLojasRoute: AuthenticatedLojasRoute,
   AuthenticatedOfertasRoute: AuthenticatedOfertasRouteWithChildren,
@@ -429,6 +471,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SemAcessoRoute: SemAcessoRoute,
   ApiTelegramWorkerRoute: ApiTelegramWorkerRoute,
+  ApiMercadolivreCallbackRoute: ApiMercadolivreCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
