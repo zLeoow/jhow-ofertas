@@ -131,6 +131,7 @@ function IntegrationsPage() {
           <div><dt className="text-xs text-muted-foreground">Marca</dt><dd className="mt-1">{previewData.brand ?? '—'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Modelo</dt><dd className="mt-1">{previewData.model ?? '—'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Catálogo</dt><dd className="mt-1">{previewData.catalogProductId ?? '—'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Resolução</dt><dd className="mt-1">{previewData.resolutionSource === 'catalog_buy_box' ? 'Buy Box oficial' : previewData.resolutionSource === 'catalog_search_fallback' ? 'Busca pública (fallback)' : 'Item direto'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Frete grátis</dt><dd className="mt-1">{previewData.freeShipping == null ? 'Não informado' : previewData.freeShipping ? 'Sim' : 'Não'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Link afiliado</dt><dd className="mt-1">{affiliateInput.trim() ? 'Informado · aguardando validação' : previewData.affiliateCandidate ? 'Detectado · aguardando validação' : 'Não informado'}</dd></div>
         </dl>
