@@ -276,8 +276,12 @@ async function resolveMercadoLivreItemId(input: string, accessToken: string) {
 }
 
 export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivreItemPreview> {
+  const catalogAccessToken = await getValidAccessToken()
+  const { itemId, requestedCatalogProductId } = await resolveMercadoLivreItemId(input, catalogAccessToken)
+
+  // resolveMercadoLivreItemId may have rotated OAuth after a 401. Re-read the
+  // persisted token so item and sale-price requests never reuse the stale copy.
   const accessToken = await getValidAccessToken()
-  const { itemId, requestedCatalogProductId } = await resolveMercadoLivreItemId(input, accessToken)
 
   const [item, sale] = await Promise.all([
     mlGet<MLItem>(
