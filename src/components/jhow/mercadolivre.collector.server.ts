@@ -179,6 +179,7 @@ export type MercadoLivreItemPreview = {
   currency: 'BRL'
   priceId: string | null
   referenceDate: string | null
+  affiliateCandidate: boolean
 }
 
 export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivreItemPreview> {
@@ -239,6 +240,7 @@ export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivre
     currency: 'BRL',
     priceId: sale.price_id == null ? null : String(sale.price_id),
     referenceDate: sale.reference_date ?? null,
+    affiliateCandidate: Boolean(extractMercadoLivreAffiliateUrl(input)),
   }
 }
 
@@ -303,7 +305,7 @@ export async function importMercadoLivreItem(input: string): Promise<MercadoLivr
   const next = new Date(now.getTime() + 60 * 60_000)
 
   const existing = await supabaseAdmin.from('product_offers')
-    .select('id,product_id')
+    .select('id,product_id,affiliate_url,affiliate_source,affiliate_verified,affiliate_verified_at')
     .eq('external_source', SOURCE)
     .eq('external_id', preview.itemId)
     .maybeSingle()
@@ -331,10 +333,14 @@ export async function importMercadoLivreItem(input: string): Promise<MercadoLivr
     const offerUpdate = await supabaseAdmin.from('product_offers').update({
       store_id: storeId,
       url: preview.permalink,
-      affiliate_url: affiliateUrl,
-      affiliate_source: affiliateUrl ? 'mercadolivre-user-provided' : null,
-      affiliate_verified: false,
-      affiliate_verified_at: null,
+      affiliate_url: affiliateUrl ?? existing.data.affiliate_url,
+      affiliate_source: affiliateUrl ? 'mercadolivre-user-provided' : existing.data.affiliate_source,
+      affiliate_verified: affiliateUrl && affiliateUrl !== existing.data.affiliate_url
+        ? false
+        : existing.data.affiliate_verified,
+      affiliate_verified_at: affiliateUrl && affiliateUrl !== existing.data.affiliate_url
+        ? null
+        : existing.data.affiliate_verified_at,
       current_price: preview.price,
       original_price: preview.regularAmount,
       shipping_price: preview.freeShipping === true ? 0 : 0,
