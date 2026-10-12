@@ -13,6 +13,8 @@ export class MercadoLivreCollectorError extends Error {
 
 const safeCollectorCodes = new Set([
   'invalid_item_id',
+  'invalid_catalog_product',
+  'catalog_without_winner',
   'item_unavailable',
   'invalid_item_response',
   'invalid_item_price',
@@ -31,16 +33,35 @@ export function extractMercadoLivreAffiliateUrl(input: string) {
   try {
     const url = new URL(raw)
     const host = url.hostname.toLowerCase()
+
+    // Mercado Livre's own short affiliate links are intentionally preserved:
+    // redirecting/expanding them ourselves could strip attribution parameters.
+    if (host === 'meli.la' || host.endsWith('.meli.la')) return raw
+
     if (!(host === 'mercadolivre.com.br' || host.endsWith('.mercadolivre.com.br'))) return null
 
     const hash = new URLSearchParams(url.hash.replace(/^#/, ''))
     const affiliateContext =
       url.searchParams.get('sid') === 'affiliates'
+      || url.searchParams.get('source') === 'affiliate-profile'
       || url.searchParams.get('polycard_client') === 'affiliates'
       || hash.get('sid') === 'affiliates'
-      || hash.get('polycard_client') === 'affiliates'
+      || hash.get('source') === 'affiliate-profile'
+      || hash.get('polycard_client')?.includes('affiliate') === true
 
     return affiliateContext ? raw : null
+  } catch {
+    return null
+  }
+}
+
+export function extractMercadoLivreCatalogProductId(input: string) {
+  const raw = input.trim()
+  if (/^MLB\d{6,}$/i.test(raw)) return null
+  try {
+    const url = new URL(raw)
+    const match = decodeURIComponent(url.pathname).match(/\/p\/(MLB\d{6,})(?:\/|$)/i)
+    return match?.[1]?.toUpperCase() ?? null
   } catch {
     return null
   }
@@ -110,6 +131,23 @@ type MLItem = {
   pictures?: Array<{ secure_url?: string | null; url?: string | null }>
   attributes?: MLAttribute[]
   shipping?: { free_shipping?: boolean | null }
+}
+
+type MLProduct = {
+  id?: string
+  status?: string | null
+  name?: string | null
+  permalink?: string | null
+  domain_id?: string | null
+  buy_box_winner?: {
+    item_id?: string | null
+    category_id?: string | null
+    seller_id?: number | null
+    price?: number | null
+    currency_id?: string | null
+    available_quantity?: number | null
+    shipping?: { free_shipping?: boolean | null }
+  } | null
 }
 
 type MLSalePrice = {
@@ -182,9 +220,37 @@ export type MercadoLivreItemPreview = {
   affiliateCandidate: boolean
 }
 
+async function resolveMercadoLivreItemId(input: string, accessToken: string) {
+  try {
+    return {
+      itemId: normalizeMercadoLivreItemId(input),
+      requestedCatalogProductId: extractMercadoLivreCatalogProductId(input),
+    }
+  } catch (error) {
+    const catalogProductId = extractMercadoLivreCatalogProductId(input)
+    if (!catalogProductId) throw error
+
+    const product = await mlGet<MLProduct>(
+      `/products/${encodeURIComponent(catalogProductId)}`,
+      accessToken,
+    )
+
+    if (product.id?.toUpperCase() !== catalogProductId || product.status !== 'active') {
+      throw new MercadoLivreCollectorError('invalid_catalog_product')
+    }
+
+    const winner = product.buy_box_winner?.item_id?.trim().toUpperCase()
+    if (!winner || !/^MLB\d{6,}$/.test(winner)) {
+      throw new MercadoLivreCollectorError('catalog_without_winner')
+    }
+
+    return { itemId: winner, requestedCatalogProductId: catalogProductId }
+  }
+}
+
 export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivreItemPreview> {
-  const itemId = normalizeMercadoLivreItemId(input)
   const accessToken = await getValidAccessToken()
+  const { itemId, requestedCatalogProductId } = await resolveMercadoLivreItemId(input, accessToken)
 
   const [item, sale] = await Promise.all([
     mlGet<MLItem>(`/items/${encodeURIComponent(itemId)}`, accessToken),
@@ -218,7 +284,7 @@ export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivre
 
   return {
     itemId,
-    catalogProductId: item.catalog_product_id ?? null,
+    catalogProductId: item.catalog_product_id ?? requestedCatalogProductId ?? null,
     title: item.title.trim(),
     permalink: item.permalink?.trim() || `https://produto.mercadolivre.com.br/${itemId}`,
     brand: attr(item, 'BRAND'),
@@ -297,9 +363,14 @@ export type MercadoLivreImportResult = MercadoLivreItemPreview & {
   confidence: number | null
 }
 
-export async function importMercadoLivreItem(input: string): Promise<MercadoLivreImportResult> {
+export async function importMercadoLivreItem(
+  input: string,
+  affiliateInput?: string | null,
+): Promise<MercadoLivreImportResult> {
   const preview = await fetchMercadoLivreItem(input)
-  const affiliateUrl = extractMercadoLivreAffiliateUrl(input)
+  const affiliateUrl = affiliateInput
+    ? extractMercadoLivreAffiliateUrl(affiliateInput)
+    : extractMercadoLivreAffiliateUrl(input)
   const storeId = await ensureMercadoLivreStore()
   const now = new Date()
   const next = new Date(now.getTime() + 60 * 60_000)
