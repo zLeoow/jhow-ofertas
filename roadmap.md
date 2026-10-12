@@ -20,6 +20,8 @@
 - [ ] Enable the first 5–10 real Mercado Livre products for collection.
 
 - [x] Mercado Livre collector V1 code: server-side OAuth token reuse, item URL/MLB normalization, sale_price pricing, import UI, external offer IDs, and CI coverage.
-- [ ] Sync collector V1 to Lovable runtime and run the first real controlled item test with MLB7485753064 (PS5 Slim Digital CFI-2114B); keep automatic collector disabled until validation passes.
+- [ ] Sync collector V1 to Lovable runtime and run the first real controlled item test with MLB57083347 (PS5 Slim Disk + Astro Bot + Gran Turismo 7); keep automatic collector disabled until validation passes.
 
-- [ ] First Mercado Livre real test target updated to MLB7485753064 / catalog MLB35925111; preserve the affiliate URL supplied by the user and validate affiliate tracking before marking affiliate_verified=true.
+- [ ] First Mercado Livre real test target: catalog MLB57083347 (PS5 Slim Disk + Astro Bot + Gran Turismo 7). Resolve the current buy_box_winner item dynamically and publish through the user-provided affiliate short link https://meli.la/12hgJwW only after affiliate validation.
+
+- [x] Collector accepts Mercado Livre catalog URLs via /products/{catalog_id} -> buy_box_winner.item_id and keeps meli.la short affiliate URLs separate from the canonical product URL.
