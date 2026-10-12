@@ -85,6 +85,8 @@ describe('Mercado Livre collector', () => {
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock.mock.calls[0]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer expired-access-token')
     expect(fetchMock.mock.calls[1]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer rotated-access-token')
+    expect(fetchMock.mock.calls[2]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer rotated-access-token')
+    expect(fetchMock.mock.calls[3]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer rotated-access-token')
   })
 
   it('resolves catalog buy_box_winner, then uses sale_price.amount as primary price', async () => {
