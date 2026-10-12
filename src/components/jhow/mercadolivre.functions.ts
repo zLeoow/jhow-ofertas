@@ -38,9 +38,12 @@ function itemInput(data: unknown) {
   if (!data || typeof data !== 'object' || typeof (data as { input?: unknown }).input !== 'string') {
     throw new Error('invalid_item_id')
   }
-  const input = (data as { input: string }).input.trim()
+  const raw = data as { input: string; affiliateUrl?: unknown }
+  const input = raw.input.trim()
+  const affiliateUrl = typeof raw.affiliateUrl === 'string' ? raw.affiliateUrl.trim() : ''
   if (!input || input.length > 4096) throw new Error('invalid_item_id')
-  return { input }
+  if (affiliateUrl.length > 4096) throw new Error('invalid_affiliate_url')
+  return { input, affiliateUrl: affiliateUrl || null }
 }
 
 export const previewMercadoLivreItem = createServerFn({ method: 'POST' })
@@ -63,7 +66,7 @@ export const importMercadoLivreItem = createServerFn({ method: 'POST' })
     await admin(context)
     const collector = await import('./mercadolivre.collector.server')
     try {
-      return await collector.importMercadoLivreItem(data.input)
+      return await collector.importMercadoLivreItem(data.input, data.affiliateUrl)
     } catch (error) {
       throw new Error(collector.sanitizeMercadoLivreCollectorError(error))
     }
