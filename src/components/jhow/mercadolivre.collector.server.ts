@@ -283,10 +283,8 @@ async function resolveCatalogViaSearch(
   const query = catalogSearchQueryFromInput(input)
   if (!query) throw new MercadoLivreCollectorError('catalog_search_empty')
 
-  const search = await mlGet<MLSearchResponse>(
+  const search = await mlPublicGet<MLSearchResponse>(
     `/sites/MLB/search?q=${encodeURIComponent(query)}&limit=50`,
-    accessToken,
-    'catalog_lookup',
   )
 
   const candidates = (search.results ?? []).filter((result) =>
@@ -302,6 +300,31 @@ async function resolveCatalogViaSearch(
     itemId: first.id.toUpperCase(),
     requestedCatalogProductId: catalogProductId,
     resolutionSource: 'catalog_search_fallback' as const,
+  }
+}
+
+async function mlPublicGet<T>(path: string): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'JhowOfertas/1.0',
+      },
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch {
+    throw new MercadoLivreCollectorError('item_unavailable')
+  }
+
+  if (!response.ok) {
+    throw new MercadoLivreCollectorError(`catalog_lookup_http_${response.status}`)
+  }
+
+  try {
+    return await response.json() as T
+  } catch {
+    throw new MercadoLivreCollectorError('invalid_item_response')
   }
 }
 
