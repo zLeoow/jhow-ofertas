@@ -18,3 +18,6 @@
 - [ ] Sync the final Mercado Livre OAuth type fixes to Lovable runtime and republish.
 - [ ] Authorize the real Mercado Livre account from /integracoes and validate /users/me.
 - [ ] Enable the first 5–10 real Mercado Livre products for collection.
+
+- [x] Mercado Livre collector V1 code: server-side OAuth token reuse, item URL/MLB normalization, sale_price pricing, import UI, external offer IDs, and CI coverage.
+- [ ] Sync collector V1 to Lovable runtime and run the first real controlled item test with MLB5852499210 (PS5 Slim Digital); keep automatic collector disabled until validation passes.
