@@ -16,6 +16,9 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     defaults:
       run:
         working-directory: workers/collector
@@ -32,11 +35,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Collector not activated yet
+        if: ${{ env.SUPABASE_URL == '' || env.SUPABASE_SERVICE_ROLE_KEY == '' }}
+        run: echo "Collector production secrets are not configured yet; skipping collection safely."
+
       - name: Process collection queue
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         run: npm run collect:once
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           WORKER_NAME: github-actions
           BATCH_SIZE: "20"
           WORKER_CONCURRENCY: "5"
