@@ -44,6 +44,41 @@ describe('Mercado Livre collector', () => {
     expect(() => normalizeMercadoLivreItemId(PRODUCT_URL)).toThrow('invalid_item_id')
   })
 
+  it('retries public catalog metadata without auth on 403, then uses sale_price.amount', async () => {
+    const winnerItemId = 'MLB7000000000'
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 'MLB57083347',
+        status: 'active',
+        buy_box_winner: { item_id: winnerItemId },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: winnerItemId,
+        title: 'Console PlayStation 5 Slim Disk Pacote Astro Bot E Gran Turismo 7',
+        permalink: `https://produto.mercadolivre.com.br/${winnerItemId}`,
+        catalog_product_id: 'MLB57083347',
+        status: 'active',
+        available_quantity: 2,
+        attributes: [],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        amount: 4299.90,
+        regular_amount: 4799.90,
+        currency_id: 'BRL',
+      }), { status: 200 }))
+
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await fetchMercadoLivreItem(PRODUCT_URL)
+    vi.unstubAllGlobals()
+
+    expect(result.itemId).toBe(winnerItemId)
+    expect(result.price).toBe(4299.90)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toHaveProperty('Authorization')
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).not.toHaveProperty('Authorization')
+  })
+
   it('resolves catalog buy_box_winner, then uses sale_price.amount as primary price', async () => {
     const winnerItemId = 'MLB7000000000'
     const fetchMock = vi.fn()
