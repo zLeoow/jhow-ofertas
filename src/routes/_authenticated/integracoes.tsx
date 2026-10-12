@@ -123,6 +123,7 @@ function IntegrationsPage() {
           <div><dt className="text-xs text-muted-foreground">Modelo</dt><dd className="mt-1">{previewData.model ?? '—'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Catálogo</dt><dd className="mt-1">{previewData.catalogProductId ?? '—'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Frete grátis</dt><dd className="mt-1">{previewData.freeShipping == null ? 'Não informado' : previewData.freeShipping ? 'Sim' : 'Não'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Link afiliado</dt><dd className="mt-1">{previewData.affiliateCandidate ? 'Detectado · aguardando validação' : 'Não detectado'}</dd></div>
         </dl>
         <div className="flex flex-wrap gap-3">
           <Button type="button" disabled={collectorBusy} onClick={() => void handleImport()}><PackagePlus /> Importar para monitoramento</Button>
