@@ -278,7 +278,6 @@ function catalogSearchQueryFromInput(input: string) {
 async function resolveCatalogViaSearch(
   input: string,
   catalogProductId: string,
-  accessToken: string,
 ) {
   const query = catalogSearchQueryFromInput(input)
   if (!query) throw new MercadoLivreCollectorError('catalog_search_empty')
@@ -365,7 +364,7 @@ async function resolveMercadoLivreItemId(input: string, accessToken: string) {
         catalogError instanceof MercadoLivreCollectorError
         && catalogError.code === 'catalog_lookup_http_403'
       ) {
-        return resolveCatalogViaSearch(input, catalogProductId, accessToken)
+        return resolveCatalogViaSearch(input, catalogProductId)
       }
       throw catalogError
     }
