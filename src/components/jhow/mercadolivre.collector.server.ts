@@ -15,6 +15,7 @@ const safeCollectorCodes = new Set([
   'invalid_item_id',
   'invalid_catalog_product',
   'catalog_without_winner',
+  'catalog_search_empty',
   'oauth_refresh_failed',
   'item_unavailable',
   'invalid_item_response',
@@ -152,6 +153,22 @@ type MLProduct = {
   } | null
 }
 
+type MLSearchResult = {
+  id?: string
+  title?: string
+  catalog_product_id?: string | null
+  price?: number | null
+  currency_id?: string | null
+  available_quantity?: number | null
+  condition?: string | null
+  permalink?: string | null
+  shipping?: { free_shipping?: boolean | null }
+}
+
+type MLSearchResponse = {
+  results?: MLSearchResult[]
+}
+
 type MLSalePrice = {
   price_id?: string | number | null
   amount?: number | null
@@ -244,6 +261,48 @@ export type MercadoLivreItemPreview = {
   priceId: string | null
   referenceDate: string | null
   affiliateCandidate: boolean
+  resolutionSource: 'direct_item' | 'catalog_buy_box' | 'catalog_search_fallback'
+}
+
+function catalogSearchQueryFromInput(input: string) {
+  try {
+    const url = new URL(input.trim())
+    const segment = decodeURIComponent(url.pathname.split('/p/')[0]?.split('/').filter(Boolean).pop() ?? '')
+    const query = segment.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+    return query || null
+  } catch {
+    return null
+  }
+}
+
+async function resolveCatalogViaSearch(
+  input: string,
+  catalogProductId: string,
+  accessToken: string,
+) {
+  const query = catalogSearchQueryFromInput(input)
+  if (!query) throw new MercadoLivreCollectorError('catalog_search_empty')
+
+  const search = await mlGet<MLSearchResponse>(
+    `/sites/MLB/search?q=${encodeURIComponent(query)}&limit=50`,
+    accessToken,
+    'catalog_lookup',
+  )
+
+  const candidates = (search.results ?? []).filter((result) =>
+    result.catalog_product_id?.toUpperCase() === catalogProductId
+    && typeof result.id === 'string'
+    && /^MLB\d{6,}$/.test(result.id.toUpperCase())
+  )
+
+  const first = candidates[0]
+  if (!first?.id) throw new MercadoLivreCollectorError('catalog_search_empty')
+
+  return {
+    itemId: first.id.toUpperCase(),
+    requestedCatalogProductId: catalogProductId,
+    resolutionSource: 'catalog_search_fallback' as const,
+  }
 }
 
 async function resolveMercadoLivreItemId(input: string, accessToken: string) {
@@ -251,33 +310,48 @@ async function resolveMercadoLivreItemId(input: string, accessToken: string) {
     return {
       itemId: normalizeMercadoLivreItemId(input),
       requestedCatalogProductId: extractMercadoLivreCatalogProductId(input),
+      resolutionSource: 'direct_item' as const,
     }
   } catch (error) {
     const catalogProductId = extractMercadoLivreCatalogProductId(input)
     if (!catalogProductId) throw error
 
-    const product = await mlGet<MLProduct>(
-      `/products/${encodeURIComponent(catalogProductId)}`,
-      accessToken,
-      'catalog_lookup',
-    )
+    try {
+      const product = await mlGet<MLProduct>(
+        `/products/${encodeURIComponent(catalogProductId)}`,
+        accessToken,
+        'catalog_lookup',
+      )
 
-    if (product.id?.toUpperCase() !== catalogProductId || product.status !== 'active') {
-      throw new MercadoLivreCollectorError('invalid_catalog_product')
+      if (product.id?.toUpperCase() !== catalogProductId || product.status !== 'active') {
+        throw new MercadoLivreCollectorError('invalid_catalog_product')
+      }
+
+      const winner = product.buy_box_winner?.item_id?.trim().toUpperCase()
+      if (!winner || !/^MLB\d{6,}$/.test(winner)) {
+        throw new MercadoLivreCollectorError('catalog_without_winner')
+      }
+
+      return {
+        itemId: winner,
+        requestedCatalogProductId: catalogProductId,
+        resolutionSource: 'catalog_buy_box' as const,
+      }
+    } catch (catalogError) {
+      if (
+        catalogError instanceof MercadoLivreCollectorError
+        && catalogError.code === 'catalog_lookup_http_403'
+      ) {
+        return resolveCatalogViaSearch(input, catalogProductId, accessToken)
+      }
+      throw catalogError
     }
-
-    const winner = product.buy_box_winner?.item_id?.trim().toUpperCase()
-    if (!winner || !/^MLB\d{6,}$/.test(winner)) {
-      throw new MercadoLivreCollectorError('catalog_without_winner')
-    }
-
-    return { itemId: winner, requestedCatalogProductId: catalogProductId }
   }
 }
 
 export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivreItemPreview> {
   const catalogAccessToken = await getValidAccessToken()
-  const { itemId, requestedCatalogProductId } = await resolveMercadoLivreItemId(input, catalogAccessToken)
+  const { itemId, requestedCatalogProductId, resolutionSource } = await resolveMercadoLivreItemId(input, catalogAccessToken)
 
   // resolveMercadoLivreItemId may have rotated OAuth after a 401. Re-read the
   // persisted token so item and sale-price requests never reuse the stale copy.
@@ -343,6 +417,7 @@ export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivre
     priceId: sale.price_id == null ? null : String(sale.price_id),
     referenceDate: sale.reference_date ?? null,
     affiliateCandidate: Boolean(extractMercadoLivreAffiliateUrl(input)),
+    resolutionSource,
   }
 }
 
