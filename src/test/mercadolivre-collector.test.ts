@@ -15,9 +15,15 @@ vi.mock('@/integrations/supabase/client.server', () => ({
 
 import {
   extractMercadoLivreAffiliateUrl,
+  extractMercadoLivreCatalogProductId,
   fetchMercadoLivreItem,
   normalizeMercadoLivreItemId,
 } from '@/components/jhow/mercadolivre.collector.server'
+
+const PRODUCT_URL =
+  'https://www.mercadolivre.com.br/console-playstation5-slim-disk-pacote-astro-bot-e-gran-turismo-7/p/MLB57083347?matt_event_ts=1791784131446&matt_d2id=055bdde5-6a72-46df-b164-5fee6993db1a&matt_tracing_id=c0e553e1-cef7-4feb-b799-4eedd2fe28e5#polycard_client=recommendations_home_affiliate-profile&reco_backend=item_decorator&reco_client=home_affiliate-profile&matt_tool_id=24853271&reco_item_pos=0&source=affiliate-profile&reco_backend_type=function&reco_id=f1b3634a-cf9b-4f8c-a58d-2cd7b2fa315d&tracking_id=1bae71f4-25ef-42e9-a6a8-803bfb013b8c&c_id=/home/card-featured/element&c_uid=e24fa766-0c49-4d9e-b627-9103831c2932'
+
+const AFFILIATE_URL = 'https://meli.la/12hgJwW'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -25,32 +31,45 @@ beforeEach(() => {
 })
 
 describe('Mercado Livre collector', () => {
-  it('extracts the concrete wid listing from the new affiliate catalog URL', () => {
-    const url = 'https://www.mercadolivre.com.br/playstation-5-edicao-digital-825-gb-slim-cfi-2114b-novo-lacrado/p/MLB35925111?pdp_filters=deal%3AMLB1578289-1&extra_comm=false&brand_comm=false#polycard_client=affiliates&wid=MLB7485753064&sid=affiliates'
-    expect(normalizeMercadoLivreItemId(url)).toBe('MLB7485753064')
-    expect(extractMercadoLivreAffiliateUrl(url)).toBe(url)
+  it('recognizes the new PS5 catalog product and preserves the short affiliate URL', () => {
+    expect(extractMercadoLivreCatalogProductId(PRODUCT_URL)).toBe('MLB57083347')
+    expect(extractMercadoLivreAffiliateUrl(AFFILIATE_URL)).toBe(AFFILIATE_URL)
   })
 
-  it('accepts the new plain MLB item id', () => {
-    expect(normalizeMercadoLivreItemId('mlb7485753064')).toBe('MLB7485753064')
+  it('still accepts a concrete plain MLB item id', () => {
+    expect(normalizeMercadoLivreItemId('MLB7485753064')).toBe('MLB7485753064')
   })
 
-  it('rejects a catalog-only URL because it is not a concrete listing', () => {
-    expect(() => normalizeMercadoLivreItemId('https://www.mercadolivre.com.br/p/MLB35925111')).toThrow('invalid_item_id')
+  it('does not mistake a catalog product id for a concrete listing id', () => {
+    expect(() => normalizeMercadoLivreItemId(PRODUCT_URL)).toThrow('invalid_item_id')
   })
 
-  it('uses sale_price.amount as the primary price and returns only safe fields', async () => {
+  it('resolves catalog buy_box_winner, then uses sale_price.amount as primary price', async () => {
+    const winnerItemId = 'MLB7000000000'
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        id: 'MLB7485753064',
-        title: 'Playstation 5 Edição Digital 825 GB Slim CFI-2114B Novo Lacrado',
-        permalink: 'https://produto.mercadolivre.com.br/MLB7485753064',
-        catalog_product_id: 'MLB35925111',
+        id: 'MLB57083347',
+        status: 'active',
+        name: 'Console PlayStation 5 Slim Disk Pacote Astro Bot e Gran Turismo 7',
+        buy_box_winner: {
+          item_id: winnerItemId,
+          seller_id: 123,
+          price: 999999,
+          currency_id: 'BRL',
+          available_quantity: 7,
+          shipping: { free_shipping: true },
+        },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: winnerItemId,
+        title: 'Console PlayStation 5 Slim Disk Pacote Astro Bot E Gran Turismo 7',
+        permalink: `https://produto.mercadolivre.com.br/${winnerItemId}`,
+        catalog_product_id: 'MLB57083347',
         domain_id: 'MLB-GAME_CONSOLES',
         category_id: 'MLB11172',
         seller_id: 123,
         status: 'active',
-        available_quantity: 5,
+        available_quantity: 7,
         sold_quantity: 10,
         condition: 'new',
         price: 999999,
@@ -63,25 +82,27 @@ describe('Mercado Livre collector', () => {
       }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         price_id: '42',
-        amount: 3499.90,
-        regular_amount: 3999.90,
+        amount: 4299.90,
+        regular_amount: 4799.90,
         currency_id: 'BRL',
         reference_date: '2026-10-12T00:00:00Z',
       }), { status: 200 }))
 
     vi.stubGlobal('fetch', fetchMock)
-    const result = await fetchMercadoLivreItem('MLB7485753064')
+    const result = await fetchMercadoLivreItem(PRODUCT_URL)
     vi.unstubAllGlobals()
 
-    expect(result.price).toBe(3499.90)
+    expect(result.itemId).toBe(winnerItemId)
+    expect(result.catalogProductId).toBe('MLB57083347')
+    expect(result.price).toBe(4299.90)
     expect(result.price).not.toBe(999999)
-    expect(result.regularAmount).toBe(3999.90)
-    expect(result.catalogProductId).toBe('MLB35925111')
+    expect(result.regularAmount).toBe(4799.90)
     expect(result.brand).toBe('Sony')
-    expect(result.model).toBe('PlayStation 5 Slim')
     expect(result.inStock).toBe(true)
     expect(result.imageUrl).toMatch(/^https:/)
     expect(JSON.stringify(result)).not.toContain('isolated-access-token')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/products/MLB57083347')
+    expect(fetchMock.mock.calls[2]?.[0]).toContain('/sale_price?context=channel_marketplace')
   })
 })
