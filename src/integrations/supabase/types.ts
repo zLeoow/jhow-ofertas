@@ -429,6 +429,8 @@ export type Database = {
           collector_kind: string
           coupon_id: string | null
           current_price: number | null
+          external_id: string | null
+          external_source: string | null
           id: string
           in_stock: boolean
           installments: string | null
@@ -455,6 +457,8 @@ export type Database = {
           collector_kind?: string
           coupon_id?: string | null
           current_price?: number | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           in_stock?: boolean
           installments?: string | null
@@ -481,6 +485,8 @@ export type Database = {
           collector_kind?: string
           coupon_id?: string | null
           current_price?: number | null
+          external_id?: string | null
+          external_source?: string | null
           id?: string
           in_stock?: boolean
           installments?: string | null
