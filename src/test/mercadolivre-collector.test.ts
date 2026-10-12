@@ -14,6 +14,7 @@ vi.mock('@/integrations/supabase/client.server', () => ({
 }))
 
 import {
+  extractMercadoLivreAffiliateUrl,
   fetchMercadoLivreItem,
   normalizeMercadoLivreItemId,
 } from '@/components/jhow/mercadolivre.collector.server'
@@ -24,26 +25,27 @@ beforeEach(() => {
 })
 
 describe('Mercado Livre collector', () => {
-  it('extracts the concrete item from a catalog URL before the catalog product id', () => {
-    const url = 'https://www.mercadolivre.com.br/console-playstation-5-slim-edicao-digital-825-gb-branco-sony/p/MLB29001054?pdp_filters=item_id:MLB5852499210|item_id:MLB5852499210'
-    expect(normalizeMercadoLivreItemId(url)).toBe('MLB5852499210')
+  it('extracts the concrete wid listing from the new affiliate catalog URL', () => {
+    const url = 'https://www.mercadolivre.com.br/playstation-5-edicao-digital-825-gb-slim-cfi-2114b-novo-lacrado/p/MLB35925111?pdp_filters=deal%3AMLB1578289-1&extra_comm=false&brand_comm=false#polycard_client=affiliates&wid=MLB7485753064&sid=affiliates'
+    expect(normalizeMercadoLivreItemId(url)).toBe('MLB7485753064')
+    expect(extractMercadoLivreAffiliateUrl(url)).toBe(url)
   })
 
-  it('accepts a plain MLB item id', () => {
-    expect(normalizeMercadoLivreItemId('mlb5852499210')).toBe('MLB5852499210')
+  it('accepts the new plain MLB item id', () => {
+    expect(normalizeMercadoLivreItemId('mlb7485753064')).toBe('MLB7485753064')
   })
 
   it('rejects a catalog-only URL because it is not a concrete listing', () => {
-    expect(() => normalizeMercadoLivreItemId('https://www.mercadolivre.com.br/p/MLB29001054')).toThrow('invalid_item_id')
+    expect(() => normalizeMercadoLivreItemId('https://www.mercadolivre.com.br/p/MLB35925111')).toThrow('invalid_item_id')
   })
 
   it('uses sale_price.amount as the primary price and returns only safe fields', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        id: 'MLB5852499210',
-        title: 'Console Playstation 5 Slim Edição Digital 825 GB Branco Sony',
-        permalink: 'https://produto.mercadolivre.com.br/MLB5852499210',
-        catalog_product_id: 'MLB29001054',
+        id: 'MLB7485753064',
+        title: 'Playstation 5 Edição Digital 825 GB Slim CFI-2114B Novo Lacrado',
+        permalink: 'https://produto.mercadolivre.com.br/MLB7485753064',
+        catalog_product_id: 'MLB35925111',
         domain_id: 'MLB-GAME_CONSOLES',
         category_id: 'MLB11172',
         seller_id: 123,
@@ -68,13 +70,13 @@ describe('Mercado Livre collector', () => {
       }), { status: 200 }))
 
     vi.stubGlobal('fetch', fetchMock)
-    const result = await fetchMercadoLivreItem('MLB5852499210')
+    const result = await fetchMercadoLivreItem('MLB7485753064')
     vi.unstubAllGlobals()
 
     expect(result.price).toBe(3499.90)
     expect(result.price).not.toBe(999999)
     expect(result.regularAmount).toBe(3999.90)
-    expect(result.catalogProductId).toBe('MLB29001054')
+    expect(result.catalogProductId).toBe('MLB35925111')
     expect(result.brand).toBe('Sony')
     expect(result.model).toBe('PlayStation 5 Slim')
     expect(result.inStock).toBe(true)
