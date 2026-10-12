@@ -23,9 +23,10 @@ const safeCollectorCodes = new Set([
 ])
 
 export function sanitizeMercadoLivreCollectorError(error: unknown) {
-  return error instanceof MercadoLivreCollectorError && safeCollectorCodes.has(error.code)
-    ? error.code
-    : 'collection_failed'
+  if (!(error instanceof MercadoLivreCollectorError)) return 'collection_failed'
+  if (safeCollectorCodes.has(error.code)) return error.code
+  if (/^(catalog_lookup|item_lookup|sale_price)_http_\d{3}$/.test(error.code)) return error.code
+  return 'collection_failed'
 }
 
 export function extractMercadoLivreAffiliateUrl(input: string) {
@@ -169,22 +170,39 @@ function httpsImage(value?: string | null) {
   return value.replace(/^http:\/\//i, 'https://')
 }
 
-async function mlGet<T>(path: string, accessToken: string): Promise<T> {
-  let response: Response
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/json',
-        'User-Agent': 'JhowOfertas/1.0',
-      },
-      signal: AbortSignal.timeout(15_000),
-    })
-  } catch {
-    throw new MercadoLivreCollectorError('item_unavailable')
+async function mlGet<T>(
+  path: string,
+  accessToken: string,
+  stage: 'catalog_lookup' | 'item_lookup' | 'sale_price',
+  allowPublicFallback = false,
+): Promise<T> {
+  const request = async (withAuth: boolean) => {
+    try {
+      return await fetch(`${API_URL}${path}`, {
+        headers: {
+          ...(withAuth ? { Authorization: `Bearer ${accessToken}` } : {}),
+          Accept: 'application/json',
+          'User-Agent': 'JhowOfertas/1.0',
+        },
+        signal: AbortSignal.timeout(15_000),
+      })
+    } catch {
+      throw new MercadoLivreCollectorError('item_unavailable')
+    }
   }
 
-  if (!response.ok) throw new MercadoLivreCollectorError('item_unavailable')
+  let response = await request(true)
+
+  // Catalog and item metadata are public Mercado Livre resources. Some OAuth
+  // applications receive 401/403 for foreign-seller metadata even though the
+  // same public resource is available anonymously. Retry only those safe GETs.
+  if (allowPublicFallback && (response.status === 401 || response.status === 403)) {
+    response = await request(false)
+  }
+
+  if (!response.ok) {
+    throw new MercadoLivreCollectorError(`${stage}_http_${response.status}`)
+  }
 
   try {
     return await response.json() as T
@@ -233,6 +251,8 @@ async function resolveMercadoLivreItemId(input: string, accessToken: string) {
     const product = await mlGet<MLProduct>(
       `/products/${encodeURIComponent(catalogProductId)}`,
       accessToken,
+      'catalog_lookup',
+      true,
     )
 
     if (product.id?.toUpperCase() !== catalogProductId || product.status !== 'active') {
@@ -253,10 +273,16 @@ export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivre
   const { itemId, requestedCatalogProductId } = await resolveMercadoLivreItemId(input, accessToken)
 
   const [item, sale] = await Promise.all([
-    mlGet<MLItem>(`/items/${encodeURIComponent(itemId)}`, accessToken),
+    mlGet<MLItem>(
+      `/items/${encodeURIComponent(itemId)}`,
+      accessToken,
+      'item_lookup',
+      true,
+    ),
     mlGet<MLSalePrice>(
       `/items/${encodeURIComponent(itemId)}/sale_price?context=channel_marketplace`,
       accessToken,
+      'sale_price',
     ),
   ])
 
