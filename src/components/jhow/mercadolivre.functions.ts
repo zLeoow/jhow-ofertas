@@ -33,3 +33,38 @@ export const verifyMercadoLivreConnection = createServerFn({ method: 'POST' }).m
   const ml = await import('./mercadolivre.server')
   try { return await ml.verifyConnection() } catch (error) { throw new Error(ml.sanitizeMercadoLivreError(error)) }
 })
+
+function itemInput(data: unknown) {
+  if (!data || typeof data !== 'object' || typeof (data as { input?: unknown }).input !== 'string') {
+    throw new Error('invalid_item_id')
+  }
+  const input = (data as { input: string }).input.trim()
+  if (!input || input.length > 4096) throw new Error('invalid_item_id')
+  return { input }
+}
+
+export const previewMercadoLivreItem = createServerFn({ method: 'POST' })
+  .validator(itemInput)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    await admin(context)
+    const collector = await import('./mercadolivre.collector.server')
+    try {
+      return await collector.fetchMercadoLivreItem(data.input)
+    } catch (error) {
+      throw new Error(collector.sanitizeMercadoLivreCollectorError(error))
+    }
+  })
+
+export const importMercadoLivreItem = createServerFn({ method: 'POST' })
+  .validator(itemInput)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    await admin(context)
+    const collector = await import('./mercadolivre.collector.server')
+    try {
+      return await collector.importMercadoLivreItem(data.input)
+    } catch (error) {
+      throw new Error(collector.sanitizeMercadoLivreCollectorError(error))
+    }
+  })
