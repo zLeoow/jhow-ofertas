@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
 import type { Json } from '@/integrations/supabase/types'
-import { API_URL, getValidAccessToken } from './mercadolivre.server'
+import { API_URL, getValidAccessToken, refreshConnection } from './mercadolivre.server'
 
 const SOURCE = 'mercadolivre'
 
@@ -15,6 +15,7 @@ const safeCollectorCodes = new Set([
   'invalid_item_id',
   'invalid_catalog_product',
   'catalog_without_winner',
+  'oauth_refresh_failed',
   'item_unavailable',
   'invalid_item_response',
   'invalid_item_price',
@@ -174,13 +175,14 @@ async function mlGet<T>(
   path: string,
   accessToken: string,
   stage: 'catalog_lookup' | 'item_lookup' | 'sale_price',
-  allowPublicFallback = false,
 ): Promise<T> {
-  const request = async (withAuth: boolean) => {
+  let activeToken = accessToken
+
+  const request = async () => {
     try {
       return await fetch(`${API_URL}${path}`, {
         headers: {
-          ...(withAuth ? { Authorization: `Bearer ${accessToken}` } : {}),
+          Authorization: `Bearer ${activeToken}`,
           Accept: 'application/json',
           'User-Agent': 'JhowOfertas/1.0',
         },
@@ -191,13 +193,19 @@ async function mlGet<T>(
     }
   }
 
-  let response = await request(true)
+  let response = await request()
 
-  // Catalog and item metadata are public Mercado Livre resources. Some OAuth
-  // applications receive 401/403 for foreign-seller metadata even though the
-  // same public resource is available anonymously. Retry only those safe GETs.
-  if (allowPublicFallback && (response.status === 401 || response.status === 403)) {
-    response = await request(false)
+  // A token can be revoked or invalidated before its local expires_at. On 401,
+  // rotate the refresh token once, obtain the newly persisted access token, and
+  // retry the exact authenticated request. Never retry a 403 as anonymous.
+  if (response.status === 401) {
+    try {
+      await refreshConnection()
+      activeToken = await getValidAccessToken()
+    } catch {
+      throw new MercadoLivreCollectorError('oauth_refresh_failed')
+    }
+    response = await request()
   }
 
   if (!response.ok) {
@@ -252,7 +260,6 @@ async function resolveMercadoLivreItemId(input: string, accessToken: string) {
       `/products/${encodeURIComponent(catalogProductId)}`,
       accessToken,
       'catalog_lookup',
-      true,
     )
 
     if (product.id?.toUpperCase() !== catalogProductId || product.status !== 'active') {
@@ -277,7 +284,6 @@ export async function fetchMercadoLivreItem(input: string): Promise<MercadoLivre
       `/items/${encodeURIComponent(itemId)}`,
       accessToken,
       'item_lookup',
-      true,
     ),
     mlGet<MLSalePrice>(
       `/items/${encodeURIComponent(itemId)}/sale_price?context=channel_marketplace`,
