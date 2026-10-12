@@ -89,6 +89,55 @@ describe('Mercado Livre collector', () => {
     expect(fetchMock.mock.calls[3]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer rotated-access-token')
   })
 
+  it('falls back to public search when /products returns 403 and keeps exact catalog id', async () => {
+    const fallbackItemId = 'MLB7111111111'
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        results: [
+          {
+            id: fallbackItemId,
+            title: 'Console PlayStation 5 Slim Disk Pacote Astro Bot E Gran Turismo 7',
+            catalog_product_id: 'MLB57083347',
+            currency_id: 'BRL',
+            available_quantity: 3,
+          },
+          {
+            id: 'MLB7222222222',
+            title: 'Outro produto',
+            catalog_product_id: 'MLB99999999',
+            currency_id: 'BRL',
+          },
+        ],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: fallbackItemId,
+        title: 'Console PlayStation 5 Slim Disk Pacote Astro Bot E Gran Turismo 7',
+        permalink: `https://produto.mercadolivre.com.br/${fallbackItemId}`,
+        catalog_product_id: 'MLB57083347',
+        status: 'active',
+        available_quantity: 3,
+        thumbnail: 'http://http2.mlstatic.com/test.jpg',
+        attributes: [],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        amount: 4199.90,
+        regular_amount: 4599.90,
+        currency_id: 'BRL',
+      }), { status: 200 }))
+
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await fetchMercadoLivreItem(PRODUCT_URL)
+    vi.unstubAllGlobals()
+
+    expect(result.itemId).toBe(fallbackItemId)
+    expect(result.catalogProductId).toBe('MLB57083347')
+    expect(result.resolutionSource).toBe('catalog_search_fallback')
+    expect(result.price).toBe(4199.90)
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('/sites/MLB/search?')
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).not.toHaveProperty('Authorization')
+  })
+
   it('resolves catalog buy_box_winner, then uses sale_price.amount as primary price', async () => {
     const winnerItemId = 'MLB7000000000'
     const fetchMock = vi.fn()
