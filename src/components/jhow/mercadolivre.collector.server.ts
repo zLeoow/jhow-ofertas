@@ -38,7 +38,7 @@ export function normalizeMercadoLivreItemId(input: string) {
 
     const filters = url.searchParams.get('pdp_filters') ?? ''
     const filterMatch = decodeURIComponent(filters).match(/item_id\s*:\s*(MLB[- ]?\d{6,})/i)
-    if (filterMatch) return filterMatch[1].replace(/[- ]/g, '').toUpperCase()
+    if (filterMatch?.[1]) return filterMatch[1].replace(/[- ]/g, '').toUpperCase()
 
     for (const value of url.searchParams.values()) {
       const match = decodeURIComponent(value).match(/\bMLB[- ]?(\d{6,})\b/i)
