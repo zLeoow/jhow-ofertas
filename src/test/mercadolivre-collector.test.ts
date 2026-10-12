@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getValidAccessToken } = vi.hoisted(() => ({
+const { getValidAccessToken, refreshConnection } = vi.hoisted(() => ({
   getValidAccessToken: vi.fn(),
+  refreshConnection: vi.fn(),
 }))
 
 vi.mock('@/components/jhow/mercadolivre.server', () => ({
   API_URL: 'https://api.mercadolibre.com',
   getValidAccessToken,
+  refreshConnection,
 }))
 
 vi.mock('@/integrations/supabase/client.server', () => ({
@@ -28,6 +30,7 @@ const AFFILIATE_URL = 'https://meli.la/12hgJwW'
 beforeEach(() => {
   vi.clearAllMocks()
   getValidAccessToken.mockResolvedValue('isolated-access-token')
+  refreshConnection.mockResolvedValue({})
 })
 
 describe('Mercado Livre collector', () => {
@@ -44,10 +47,14 @@ describe('Mercado Livre collector', () => {
     expect(() => normalizeMercadoLivreItemId(PRODUCT_URL)).toThrow('invalid_item_id')
   })
 
-  it('retries public catalog metadata without auth on 403, then uses sale_price.amount', async () => {
+  it('refreshes OAuth once when catalog lookup returns 401, then retries authenticated', async () => {
     const winnerItemId = 'MLB7000000000'
+    getValidAccessToken
+      .mockResolvedValueOnce('expired-access-token')
+      .mockResolvedValue('rotated-access-token')
+
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         id: 'MLB57083347',
         status: 'active',
@@ -74,9 +81,10 @@ describe('Mercado Livre collector', () => {
 
     expect(result.itemId).toBe(winnerItemId)
     expect(result.price).toBe(4299.90)
+    expect(refreshConnection).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(4)
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toHaveProperty('Authorization')
-    expect(fetchMock.mock.calls[1]?.[1]?.headers).not.toHaveProperty('Authorization')
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer expired-access-token')
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toHaveProperty('Authorization', 'Bearer rotated-access-token')
   })
 
   it('resolves catalog buy_box_winner, then uses sale_price.amount as primary price', async () => {
