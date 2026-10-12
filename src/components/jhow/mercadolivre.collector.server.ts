@@ -26,12 +26,40 @@ export function sanitizeMercadoLivreCollectorError(error: unknown) {
     : 'collection_failed'
 }
 
+export function extractMercadoLivreAffiliateUrl(input: string) {
+  const raw = input.trim()
+  try {
+    const url = new URL(raw)
+    const host = url.hostname.toLowerCase()
+    if (!(host === 'mercadolivre.com.br' || host.endsWith('.mercadolivre.com.br'))) return null
+
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ''))
+    const affiliateContext =
+      url.searchParams.get('sid') === 'affiliates'
+      || url.searchParams.get('polycard_client') === 'affiliates'
+      || hash.get('sid') === 'affiliates'
+      || hash.get('polycard_client') === 'affiliates'
+
+    return affiliateContext ? raw : null
+  } catch {
+    return null
+  }
+}
+
 export function normalizeMercadoLivreItemId(input: string) {
   const raw = input.trim()
   if (/^MLB\d{6,}$/i.test(raw)) return raw.toUpperCase()
 
   try {
     const url = new URL(raw)
+
+    // Catalog/product pages can carry the concrete listing as wid in the
+    // hash used by the Mercado Livre affiliate UI.
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ''))
+    const wid = hash.get('wid') ?? url.searchParams.get('wid')
+    const widMatch = wid?.match(/\bMLB[- ]?(\d{6,})\b/i)
+    if (widMatch?.[1]) return `MLB${widMatch[1]}`
+
     const direct = url.searchParams.get('item_id')
     const directMatch = direct?.match(/\bMLB[- ]?(\d{6,})\b/i)
     if (directMatch) return `MLB${directMatch[1]}`
@@ -220,7 +248,18 @@ async function ensureMercadoLivreStore() {
     .eq('slug', 'mercado-livre')
     .maybeSingle()
   if (existing.error) throw new MercadoLivreCollectorError('storage_unavailable')
-  if (existing.data) return existing.data.id
+  if (existing.data) {
+    const updated = await supabaseAdmin.from('stores').update({
+      website: 'https://www.mercadolivre.com.br',
+      trust_score: 85,
+      active: true,
+      affiliate_enabled: true,
+      affiliate_required: true,
+      affiliate_program: 'Mercado Livre Afiliados',
+    }).eq('id', existing.data.id)
+    if (updated.error) throw new MercadoLivreCollectorError('storage_unavailable')
+    return existing.data.id
+  }
 
   const inserted = await supabaseAdmin.from('stores').insert({
     name: 'Mercado Livre',
@@ -228,8 +267,9 @@ async function ensureMercadoLivreStore() {
     website: 'https://www.mercadolivre.com.br',
     trust_score: 85,
     active: true,
-    affiliate_enabled: false,
-    affiliate_required: false,
+    affiliate_enabled: true,
+    affiliate_required: true,
+    affiliate_program: 'Mercado Livre Afiliados',
   }).select('id').single()
 
   if (inserted.error || !inserted.data) {
@@ -257,6 +297,7 @@ export type MercadoLivreImportResult = MercadoLivreItemPreview & {
 
 export async function importMercadoLivreItem(input: string): Promise<MercadoLivreImportResult> {
   const preview = await fetchMercadoLivreItem(input)
+  const affiliateUrl = extractMercadoLivreAffiliateUrl(input)
   const storeId = await ensureMercadoLivreStore()
   const now = new Date()
   const next = new Date(now.getTime() + 60 * 60_000)
@@ -290,6 +331,10 @@ export async function importMercadoLivreItem(input: string): Promise<MercadoLivr
     const offerUpdate = await supabaseAdmin.from('product_offers').update({
       store_id: storeId,
       url: preview.permalink,
+      affiliate_url: affiliateUrl,
+      affiliate_source: affiliateUrl ? 'mercadolivre-user-provided' : null,
+      affiliate_verified: false,
+      affiliate_verified_at: null,
       current_price: preview.price,
       original_price: preview.regularAmount,
       shipping_price: preview.freeShipping === true ? 0 : 0,
@@ -332,6 +377,10 @@ export async function importMercadoLivreItem(input: string): Promise<MercadoLivr
       product_id: productId,
       store_id: storeId,
       url: preview.permalink,
+      affiliate_url: affiliateUrl,
+      affiliate_source: affiliateUrl ? 'mercadolivre-user-provided' : null,
+      affiliate_verified: false,
+      affiliate_verified_at: null,
       current_price: preview.price,
       original_price: preview.regularAmount,
       shipping_price: 0,
