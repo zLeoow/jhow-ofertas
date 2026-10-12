@@ -27,6 +27,7 @@ function IntegrationsPage() {
   const importItem = useServerFn(importMercadoLivreItem)
   const [busy, setBusy] = useState(false)
   const [collectorInput, setCollectorInput] = useState('')
+  const [affiliateInput, setAffiliateInput] = useState('')
   const [collectorBusy, setCollectorBusy] = useState(false)
   const [collectorError, setCollectorError] = useState('')
   const [previewData, setPreviewData] = useState<Awaited<ReturnType<typeof previewMercadoLivreItem>> | null>(null)
@@ -59,7 +60,7 @@ function IntegrationsPage() {
     setCollectorBusy(true)
     setCollectorError('')
     try {
-      const result = await importItem({ data: { input: collectorInput } })
+      const result = await importItem({ data: { input: collectorInput, affiliateUrl: affiliateInput } })
       setImportedData(result)
       setPreviewData(result)
       setNotice(result.created ? 'Produto importado para monitoramento.' : 'Oferta atualizada sem duplicar o cadastro.')
@@ -96,16 +97,24 @@ function IntegrationsPage() {
 
     <section className="space-y-5 border-t border-border pt-6">
       <div className="flex items-center gap-3"><Search className="text-primary"/><div><h2 className="text-xl font-semibold">Teste de coleta</h2><p className="text-sm text-muted-foreground">Consulte uma publicação real antes de ativar o coletor automático.</p></div></div>
-      <div className="flex max-w-4xl flex-col gap-3 sm:flex-row">
+      <div className="grid max-w-4xl gap-3">
         <Input
           value={collectorInput}
           onChange={(event) => { setCollectorInput(event.target.value); setCollectorError('') }}
-          placeholder="Cole a URL do Mercado Livre ou MLB5852499210"
+          placeholder="URL do produto, página de catálogo ou MLB..."
           disabled={!status.connected || collectorBusy}
         />
-        <Button type="button" variant="outline" disabled={!status.connected || collectorBusy || !collectorInput.trim()} onClick={() => void handlePreview()}>
-          <Search /> {collectorBusy ? 'Consultando...' : 'Pré-visualizar'}
-        </Button>
+        <Input
+          value={affiliateInput}
+          onChange={(event) => { setAffiliateInput(event.target.value); setCollectorError('') }}
+          placeholder="Link de afiliado opcional, ex.: https://meli.la/..."
+          disabled={!status.connected || collectorBusy}
+        />
+        <div>
+          <Button type="button" variant="outline" disabled={!status.connected || collectorBusy || !collectorInput.trim()} onClick={() => void handlePreview()}>
+            <Search /> {collectorBusy ? 'Consultando...' : 'Pré-visualizar'}
+          </Button>
+        </div>
       </div>
       {!status.connected && <p className="text-sm text-muted-foreground">Conecte sua conta Mercado Livre para testar a coleta.</p>}
       {collectorError && <p role="alert" className="text-sm text-destructive">{collectorError}</p>}
@@ -123,7 +132,7 @@ function IntegrationsPage() {
           <div><dt className="text-xs text-muted-foreground">Modelo</dt><dd className="mt-1">{previewData.model ?? '—'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Catálogo</dt><dd className="mt-1">{previewData.catalogProductId ?? '—'}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Frete grátis</dt><dd className="mt-1">{previewData.freeShipping == null ? 'Não informado' : previewData.freeShipping ? 'Sim' : 'Não'}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Link afiliado</dt><dd className="mt-1">{previewData.affiliateCandidate ? 'Detectado · aguardando validação' : 'Não detectado'}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Link afiliado</dt><dd className="mt-1">{affiliateInput.trim() ? 'Informado · aguardando validação' : previewData.affiliateCandidate ? 'Detectado · aguardando validação' : 'Não informado'}</dd></div>
         </dl>
         <div className="flex flex-wrap gap-3">
           <Button type="button" disabled={collectorBusy} onClick={() => void handleImport()}><PackagePlus /> Importar para monitoramento</Button>
