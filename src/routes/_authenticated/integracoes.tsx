@@ -5,6 +5,7 @@ import { queryOptions, useQueryClient, useSuspenseQuery } from '@tanstack/react-
 import { Plug, RefreshCw, ShieldCheck, Unplug, ExternalLink, Search, PackagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { collectorErrorMessage } from '@/components/jhow/mercadolivre.diagnostics'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { getMercadoLivreStatus, startMercadoLivreOAuth, verifyMercadoLivreConnection, refreshMercadoLivreConnection, disconnectMercadoLivreConnection, previewMercadoLivreItem, importMercadoLivreItem } from '@/components/jhow/mercadolivre.functions'
 
@@ -50,7 +51,7 @@ function IntegrationsPage() {
       setPreviewData(result)
     } catch (error) {
       setPreviewData(null)
-      setCollectorError(error instanceof Error ? error.message : 'Falha ao consultar item.')
+      setCollectorError(collectorErrorMessage(error instanceof Error ? error.message : ''))
     } finally {
       setCollectorBusy(false)
     }
@@ -65,7 +66,7 @@ function IntegrationsPage() {
       setPreviewData(result)
       setNotice(result.created ? 'Produto importado para monitoramento.' : 'Oferta atualizada sem duplicar o cadastro.')
     } catch (error) {
-      setCollectorError(error instanceof Error ? error.message : 'Falha ao importar item.')
+      setCollectorError(collectorErrorMessage(error instanceof Error ? error.message : ''))
     } finally {
       setCollectorBusy(false)
     }
