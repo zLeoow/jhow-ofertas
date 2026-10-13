@@ -10,6 +10,7 @@
 - [x] Verify real bot identity (@JhowOfertasBot) and send the single authorized channel smoke test (message_id 4).
 - [x] Verify authenticated Telegram scheduler with automation enabled: HTTP 200, completed, zero sends on empty queue; unauthenticated callback rejected.
 - [ ] Finalize external collectors (Mercado Livre first), first real products, and monitoring.
+- [x] Publish and verify safe catalog HTTP 403 diagnostics in preview and production; connected OAuth returned PA_UNAUTHORIZED_RESULT_FROM_POLICIES, with no import or Telegram send and zero enabled Mercado Livre collectors.
 
 - [x] Validate canonical affiliate sync e8fb780: schema, tests, and authenticated preview.
 - Published app URL: https://jhow-ofertas.lovable.app
