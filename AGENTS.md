@@ -11,6 +11,7 @@
 
 - Keep authenticated Jhow admin pages under the pathless `_authenticated` layout and verify the admin role in its gate; this prevents non-admin access while preserving original section URLs.
 - Use the generated browser database client with admin-only RLS for management screens; this avoids exposing privileged credentials in the app.
+- Explicitly replace both bracket and dot access to public database environment variables in Vite and fail when they are missing; compiled clients must not depend on server-only environment fallbacks.
 - Record offer price edits in a database trigger; this keeps history consistent regardless of which editor changes an offer.
 - Display the newest persisted offer score from the shared admin query and recalculate through analyze_offer RPC; this keeps the diagnostic, list, and dashboard aligned with the database engine.
 - Keep affiliate status and explicit template generation in the shared affiliates helper, and send only the queued published_url in Telegram; this aligns management views and preserves the publication decision.
@@ -19,3 +20,4 @@
 - Preserve the canonical GitHub Telegram workflow as source infrastructure without activating it during synchronization; enable automation only after an explicitly chosen scheduler is confirmed active to avoid duplicate schedules.
 - Authenticate Telegram scheduler callbacks through the service-role-only database verifier; this avoids runtime environment drift while keeping raw credentials out of the database.
 - Keep Mercado Livre OAuth in server-only helpers and service-role-only tables; conditional state consumption and database refresh leases prevent state replay and concurrent rotating-token refreshes. Persist the rotated pair before identity validation so an identity outage cannot lose it.
+- Fail closed on Mercado Livre catalog permission errors without public-search fallback; retain only sanitized error/code/message/status for diagnosis and never echo provider bodies or credentials.
