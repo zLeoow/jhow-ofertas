@@ -1,11 +1,12 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
 import type { Json } from '@/integrations/supabase/types'
 import { API_URL, getValidAccessToken, refreshConnection } from './mercadolivre.server'
+import { safeProviderDiagnostic, type MercadoLivreHttpDiagnostic } from './mercadolivre.diagnostics'
 
 const SOURCE = 'mercadolivre'
 
 export class MercadoLivreCollectorError extends Error {
-  constructor(public readonly code: string) {
+  constructor(public readonly code: string, public readonly diagnostic?: MercadoLivreHttpDiagnostic) {
     super(code)
     this.name = 'MercadoLivreCollectorError'
   }
@@ -27,8 +28,14 @@ const safeCollectorCodes = new Set([
 export function sanitizeMercadoLivreCollectorError(error: unknown) {
   if (!(error instanceof MercadoLivreCollectorError)) return 'collection_failed'
   if (safeCollectorCodes.has(error.code)) return error.code
-  if (/^(catalog_lookup|item_lookup|sale_price)_http_\d{3}$/.test(error.code)) return error.code
+  if (/^(catalog_lookup|item_lookup|sale_price)_http_\d{3}(?:__[a-z0-9_-]{1,80}){0,2}$/.test(error.code)) return error.code
   return 'collection_failed'
+}
+
+export function serializeMercadoLivreCollectorError(error: unknown) {
+  const code = sanitizeMercadoLivreCollectorError(error)
+  return error instanceof MercadoLivreCollectorError && error.diagnostic
+    ? JSON.stringify({ code, diagnostic: error.diagnostic }) : code
 }
 
 export function extractMercadoLivreAffiliateUrl(input: string) {
@@ -226,7 +233,11 @@ async function mlGet<T>(
   }
 
   if (!response.ok) {
-    throw new MercadoLivreCollectorError(`${stage}_http_${response.status}`)
+    let body: unknown = null
+    try { body = await response.json() } catch { /* Only safe fields from JSON are retained. */ }
+    const diagnostic = safeProviderDiagnostic(body, response.status, [accessToken, activeToken, process.env['MERCADOLIVRE_CLIENT_SECRET'] ?? ''])
+    const segment = (value: string | null) => value?.toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 80) || 'unknown'
+    throw new MercadoLivreCollectorError(`${stage}_http_${response.status}__${segment(diagnostic.error)}__${segment(diagnostic.code)}`, diagnostic)
   }
 
   try {
@@ -264,69 +275,6 @@ export type MercadoLivreItemPreview = {
   resolutionSource: 'direct_item' | 'catalog_buy_box' | 'catalog_search_fallback'
 }
 
-function catalogSearchQueryFromInput(input: string) {
-  try {
-    const url = new URL(input.trim())
-    const segment = decodeURIComponent(url.pathname.split('/p/')[0]?.split('/').filter(Boolean).pop() ?? '')
-    const query = segment.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
-    return query || null
-  } catch {
-    return null
-  }
-}
-
-async function resolveCatalogViaSearch(
-  input: string,
-  catalogProductId: string,
-) {
-  const query = catalogSearchQueryFromInput(input)
-  if (!query) throw new MercadoLivreCollectorError('catalog_search_empty')
-
-  const search = await mlPublicGet<MLSearchResponse>(
-    `/sites/MLB/search?q=${encodeURIComponent(query)}&limit=50`,
-  )
-
-  const candidates = (search.results ?? []).filter((result) =>
-    result.catalog_product_id?.toUpperCase() === catalogProductId
-    && typeof result.id === 'string'
-    && /^MLB\d{6,}$/.test(result.id.toUpperCase())
-  )
-
-  const first = candidates[0]
-  if (!first?.id) throw new MercadoLivreCollectorError('catalog_search_empty')
-
-  return {
-    itemId: first.id.toUpperCase(),
-    requestedCatalogProductId: catalogProductId,
-    resolutionSource: 'catalog_search_fallback' as const,
-  }
-}
-
-async function mlPublicGet<T>(path: string): Promise<T> {
-  let response: Response
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'JhowOfertas/1.0',
-      },
-      signal: AbortSignal.timeout(15_000),
-    })
-  } catch {
-    throw new MercadoLivreCollectorError('item_unavailable')
-  }
-
-  if (!response.ok) {
-    throw new MercadoLivreCollectorError(`catalog_lookup_http_${response.status}`)
-  }
-
-  try {
-    return await response.json() as T
-  } catch {
-    throw new MercadoLivreCollectorError('invalid_item_response')
-  }
-}
-
 async function resolveMercadoLivreItemId(input: string, accessToken: string) {
   try {
     return {
@@ -360,14 +308,21 @@ async function resolveMercadoLivreItemId(input: string, accessToken: string) {
         resolutionSource: 'catalog_buy_box' as const,
       }
     } catch (catalogError) {
-      if (
-        catalogError instanceof MercadoLivreCollectorError
-        && catalogError.code === 'catalog_lookup_http_403'
-      ) {
-        return resolveCatalogViaSearch(input, catalogProductId)
-      }
       throw catalogError
     }
+  }
+}
+
+// Internal diagnostic: only this authenticated catalog GET, never item reads,
+// business writes, public fallback or publication.
+export async function diagnoseMercadoLivreCatalog(catalogId: string) {
+  if (!/^MLB\d{6,}$/.test(catalogId)) throw new MercadoLivreCollectorError('invalid_catalog_product')
+  try {
+    await mlGet<MLProduct>(`/products/${catalogId}`, await getValidAccessToken(), 'catalog_lookup')
+    return { status: 200, error: null, code: null, message: null }
+  } catch (error) {
+    if (error instanceof MercadoLivreCollectorError && error.diagnostic) return error.diagnostic
+    throw new Error(sanitizeMercadoLivreCollectorError(error))
   }
 }
 
