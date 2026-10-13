@@ -55,7 +55,7 @@ export const previewMercadoLivreItem = createServerFn({ method: 'POST' })
     try {
       return await collector.fetchMercadoLivreItem(data.input)
     } catch (error) {
-      throw new Error(collector.sanitizeMercadoLivreCollectorError(error))
+      throw new Error(collector.serializeMercadoLivreCollectorError(error))
     }
   })
 
@@ -68,6 +68,6 @@ export const importMercadoLivreItem = createServerFn({ method: 'POST' })
     try {
       return await collector.importMercadoLivreItem(data.input, data.affiliateUrl)
     } catch (error) {
-      throw new Error(collector.sanitizeMercadoLivreCollectorError(error))
+      throw new Error(collector.serializeMercadoLivreCollectorError(error))
     }
   })
